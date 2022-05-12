@@ -1,0 +1,32 @@
+.info-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 2px;
+  background-color: cornflowerblue;
+  min-width: 200px;
+  cursor: pointer;
+}
+
+.info-container {
+  border: 1px solid aliceblue;
+  padding: 0.5rem;
+  color: aliceblue;
+}
+
+.info-header {
+  font-size: 1.2rem;
+  font-weight: bold;
+  padding-bottom: 0.1rem;
+  margin-bottom: 0.4rem;
+  border-bottom: 1px solid aliceblue;
+}
+
+.info-text {
+  font-size: 1rem;
+}
+
+.prompt {
+  display: inline-block;
+  min-width: 100px;
+}
