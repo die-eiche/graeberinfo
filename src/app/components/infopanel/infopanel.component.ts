@@ -1,10 +1,9 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { BehaviorSubject, Observable, Subject } from 'rxjs';
+import { Subject } from 'rxjs';
 import { switchMap, takeUntil } from 'rxjs/operators';
 import { DataService } from '../../services/data.service';
 import { DataModel } from '../../services/datamodel';
-
 
 @Component({
   selector: 'eis-infopanel',
@@ -13,11 +12,7 @@ import { DataModel } from '../../services/datamodel';
 })
 export class InfopanelComponent implements OnInit, OnDestroy {
 
-  public info$: Observable<DataModel>;
-
-  public isVisible$: Observable<boolean>;
-
-  private isVisible: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
+  public info: DataModel = {} as DataModel;
 
   private shutdownSignal: Subject<void> = new Subject<void>();
 
@@ -26,23 +21,15 @@ export class InfopanelComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private dataService: DataService) {
 
-    this.info$ = this.route.paramMap
+    this.route.paramMap
       .pipe(
+        takeUntil(this.shutdownSignal),
         switchMap(params => {
           const id: string = params.get('id') || '';
           return this.dataService.readData$(id);
         })
-      );
-
-    this.info$
-      .pipe(takeUntil(this.shutdownSignal))
-      .subscribe((info: DataModel) => {
-        if (info) {
-          this.isVisible.next(true);
-        }
-      });
-
-    this.isVisible$ = this.isVisible.asObservable();
+      )
+      .subscribe((data: DataModel) => this.info = data);
   }
 
   public ngOnInit(): void {

@@ -1,12 +1,11 @@
-<div *ngIf="isVisible$ | async" (click)="hide()" class="info-panel">
+<div (click)="hide()" class="info-panel">
   <div class="info-container">
     <p class="info-header">Information</p>
     <p class="info-text">
-      <span class="prompt">Grabstelle:</span> {{(info$ | async)?.grabStelle}}<br>
-      <span class="prompt">PowerOrdo:</span> {{(info$ | async)?.poAuftrag}}<br>
-      <span class="prompt">Mieter:</span> {{(info$ | async)?.mieter}}<br>
-      <span class="prompt">Straße:</span> {{(info$ | async)?.strasse}}<br>
-      <span class="prompt">Ort:</span> {{(info$ | async)?.plz}} {{(info$ | async)?.ort}}
+      <span class="prompt">Grabstätte:</span> {{info.grabStelle}}<br>
+      <span class="prompt">PowerOrdo:</span> {{info.poAuftrag}}<br>
+      <span class="prompt">pro Jahr:</span> {{info.mieteJahr | currency:'EUR':'symbol'}}<br>
+      <span class="prompt">15 Jahre:</span> {{info.miete15Jahre | currency:'EUR':'symbol'}}<br>
     </p>
   </div>
 </div>
