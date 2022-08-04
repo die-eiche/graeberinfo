@@ -6,17 +6,30 @@ import { map } from 'rxjs/operators';
 import { DataModel } from './datamodel';
 
 const emptyRecord: DataModel = {
-  grabStelle: '?',
-  poAuftrag: '?',
-  mieteJahr: 0,
-  miete15Jahre: 0
+  burialPlotCount: 0,
+  grave: '?',
+  remark: '?',
+  itemNo: '?',
+  price15: 0,
+  price5: 0,
+  price1: 0,
+  specialPrice: 0,
+  errorCode: '?',
+  orderNo: 0,
+  creditorNo: 0,
+  renter: '?',
+  occupiedFrom: '?',
+  rentalUntil: '?',
+  recalculationDueDays: 0,
+  name: '?',
+  dateOfBirth: '?'
 } as DataModel;
 
 @Injectable({
   providedIn: 'root'
 })
 export class DataService {
-  private dataUrl = '/assets/Export.csv';
+  private dataUrl = 'http://localhost:3000/info';
 
   constructor(
     private httpClient: HttpClient,
@@ -35,19 +48,33 @@ export class DataService {
           // csvText is an array of arrays => csvText[rows][columns]
           const records = this.csvParser.csvStringToArray(csvText, ';')
             .filter(textArray => {
-              return textArray && (textArray.length === 3) && (textArray[0] === id);
+              return textArray && (textArray.length === 17) && (textArray[1] === id);
             })
             .map(textArray => {
               console.log(textArray);
               return {
-                grabStelle: textArray[0],
-                poAuftrag: textArray[1],
-                mieteJahr: +textArray[2],
-                miete15Jahre: +textArray[2] * 15
+                burialPlotCount: +textArray[0],
+                grave: textArray[1],
+                remark: textArray[2],
+                itemNo: textArray[3],
+                price15: +textArray[4],
+                price5: +textArray[5],
+                price1: +textArray[6],
+                specialPrice: +textArray[7],
+                errorCode: textArray[8],
+                orderNo: +textArray[9],
+                creditorNo: +textArray[10],
+                renter: textArray[11],
+                occupiedFrom: textArray[12],
+                rentalUntil: textArray[13],
+                recalculationDueDays: +textArray[14],
+                name: textArray[15],
+                dateOfBirth: textArray[16]
               } as DataModel;
             });
 
-          if (records.length === 1) {
+          if (records.length > 0) {
+            console.log('records:', records);
             return records[0];
           }
 

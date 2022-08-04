@@ -2,10 +2,8 @@
   <div class="info-container">
     <p class="info-header">Information</p>
     <p class="info-text">
-      <span class="prompt">Grabstätte:</span> {{info.grabStelle}}<br>
-      <span class="prompt">PowerOrdo:</span> {{info.poAuftrag}}<br>
-      <span class="prompt">pro Jahr:</span> {{info.mieteJahr | currency:'EUR':'symbol'}}<br>
-      <span class="prompt">15 Jahre:</span> {{info.miete15Jahre | currency:'EUR':'symbol'}}<br>
+      <span class="prompt">Grabstätte:</span> {{info.grave}}<br>
+      {{info | json}}
     </p>
   </div>
 </div>
