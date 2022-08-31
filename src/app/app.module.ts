@@ -4,7 +4,6 @@ import localeDeExtra from '@angular/common/locales/extra/de';
 import { DEFAULT_CURRENCY_CODE, LOCALE_ID, NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { HttpClientModule } from '@angular/common/http';
-import { NgxCsvParserModule } from 'ngx-csv-parser';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -23,8 +22,7 @@ registerLocaleData(localeDe, 'de-DE', localeDeExtra);
   imports: [
     BrowserModule,
     AppRoutingModule,
-    HttpClientModule,
-    NgxCsvParserModule
+    HttpClientModule
   ],
   providers: [
     DataService,
