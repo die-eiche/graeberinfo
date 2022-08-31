@@ -1,8 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { NgxCsvParser } from 'ngx-csv-parser';
 import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { of } from 'rxjs/internal/observable/of';
+import { map, tap } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
 import { DataModel } from './datamodel';
 
 const emptyRecord: DataModel = {
@@ -29,57 +30,32 @@ const emptyRecord: DataModel = {
   providedIn: 'root'
 })
 export class DataService {
-  private dataUrl = 'http://localhost:3000/info';
+  private dataUrl = '/api/info-data';
+
+  private cachedRecords: DataModel[] = [];
 
   constructor(
-    private httpClient: HttpClient,
-    private csvParser: NgxCsvParser) {
+    private httpClient: HttpClient) {
   }
 
-  public readData$(id: string): Observable<DataModel> {
-    console.log(id);
-    const options = {
-      responseType: 'text' as 'json'
-    };
+  public readData$(): Observable<DataModel[]> {
+    const uri = environment.dataServerBaseAddress + this.dataUrl + `?code=89TXFKZJCU7Qm2HWjsgP7wuKtp4T3jBp_x-Bi4bjQSqsAzFucMS3-A==&` + new Date().getTime();
+    let source$ = this.cachedRecords.length
+      ? of(this.cachedRecords)
+      : this.httpClient.get<DataModel[]>(uri);
 
-    return this.httpClient.get<string>(this.dataUrl, options)
+    return source$
       .pipe(
-        map((csvText) => {
-          // csvText is an array of arrays => csvText[rows][columns]
-          const records = this.csvParser.csvStringToArray(csvText, ';')
-            .filter(textArray => {
-              return textArray && (textArray.length === 17) && (textArray[1] === id);
-            })
-            .map(textArray => {
-              console.log(textArray);
-              return {
-                burialPlotCount: +textArray[0],
-                grave: textArray[1],
-                remark: textArray[2],
-                itemNo: textArray[3],
-                price15: +textArray[4],
-                price5: +textArray[5],
-                price1: +textArray[6],
-                specialPrice: +textArray[7],
-                errorCode: textArray[8],
-                orderNo: +textArray[9],
-                creditorNo: +textArray[10],
-                renter: textArray[11],
-                occupiedFrom: textArray[12],
-                rentalUntil: textArray[13],
-                recalculationDueDays: +textArray[14],
-                name: textArray[15],
-                dateOfBirth: textArray[16]
-              } as DataModel;
-            });
-
+        map((records: DataModel[]) => {
           if (records.length > 0) {
-            console.log('records:', records);
-            return records[0];
+            console.log('records found:', records.length, records);
+            return records;
           }
 
-          return emptyRecord;
-        })
+          console.warn('No records found at ' + uri);
+          return [emptyRecord];
+        }),
+        tap((records: DataModel[]) => this.cachedRecords = records)
       );
   }
 }

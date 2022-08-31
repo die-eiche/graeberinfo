@@ -1,9 +1,29 @@
 <div (click)="hide()" class="info-panel">
-  <div class="info-container">
-    <p class="info-header">Information</p>
+  <div *ngIf="info$ | async as info" class="info-container">
+    <p class="info-header">Grab {{info.grave}}</p>
     <p class="info-text">
-      <span class="prompt">Grabstätte:</span> {{info.grave}}<br>
-      {{info | json}}
+      <span class="prompt">Artikelnummer: </span>{{info.itemNo}}<br>
+      <span *ngIf="!info.specialPrice">
+        <span class="prompt">Preise: </span>{{info.price1 | currency}} / {{info.price5 | currency}}
+        / {{info.price15 | currency}}<br>
+      </span>
+      <span *ngIf="info.specialPrice">
+        <span class="prompt">Sonderpreis: </span>{{info.specialPrice | currency}}<br>
+      </span>
+      <span class="prompt">Bemerkung: </span>{{info.remark}}<br>
+      <span class="prompt">Grabstellen: </span>{{info.burialPlotCount}} ({{info.availableBurialPlotCount}} davon frei)<br>
     </p>
+    <div *ngFor="let burialPlot of info.burialPlots" class="burial-plot-info">
+      <p *ngIf="burialPlot.orderNo || burialPlot.renter">
+        <span class="prompt">Auftrag: </span>{{burialPlot.orderNo}}<br>
+        <span class="prompt">Kreditor: </span>{{burialPlot.creditorNo}}<br>
+        <span class="prompt">Mieter: </span>{{burialPlot.renter}}<br>
+        <span class="prompt">Belegt ab: </span>{{burialPlot.occupiedFrom}}<br>
+        <span class="prompt">Gemietet bis: </span>{{burialPlot.rentalUntil}}<br>
+        <span class="prompt">Nachberechnung in: </span>{{burialPlot.recalculationDueDays}} Tagen<br>
+        <span class="prompt">Namer: </span>{{burialPlot.name}}<br>
+        <span class="prompt">Geburtsdatum: </span>{{burialPlot.dateOfBirth}}
+      </p>
+    </div>
   </div>
 </div>

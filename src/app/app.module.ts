@@ -1,7 +1,7 @@
 import { APP_BASE_HREF, registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
 import localeDeExtra from '@angular/common/locales/extra/de';
-import { LOCALE_ID, NgModule } from '@angular/core';
+import { DEFAULT_CURRENCY_CODE, LOCALE_ID, NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { HttpClientModule } from '@angular/common/http';
 import { NgxCsvParserModule } from 'ngx-csv-parser';
@@ -29,6 +29,7 @@ registerLocaleData(localeDe, 'de-DE', localeDeExtra);
   providers: [
     DataService,
     {provide: LOCALE_ID, useValue: 'de-DE'},
+    {provide: DEFAULT_CURRENCY_CODE, useValue: 'EUR'},
     {provide: APP_BASE_HREF, useValue: '/'}
   ],
   bootstrap: [AppComponent]

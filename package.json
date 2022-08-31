@@ -4,8 +4,12 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "start:prod": "ng serve --configuration production",
     "build": "ng build",
+    "build:stage": "ng build --configuration stage",
+    "build:prod": "ng build --configuration production",
     "watch": "ng build --watch --configuration development",
+    "watch:stage": "ng build --watch --configuration stage",
     "test": "ng test"
   },
   "private": true,
@@ -18,7 +22,6 @@
     "@angular/platform-browser": "~13.2.0",
     "@angular/platform-browser-dynamic": "~13.2.0",
     "@angular/router": "~13.2.0",
-    "ngx-csv-parser": "^1.1.1",
     "rxjs": "~7.5.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.11.4"
