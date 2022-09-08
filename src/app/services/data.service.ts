@@ -11,19 +11,16 @@ const emptyRecord: DataModel = {
   grave: '?',
   remark: '?',
   itemNo: '?',
-  price15: 0,
-  price5: 0,
-  price1: 0,
+  pricePerYear: 0,
   specialPrice: 0,
-  errorCode: '?',
   orderNo: 0,
   creditorNo: 0,
-  renter: '?',
+  rentalFrom: '?',
   occupiedFrom: '?',
   rentalUntil: '?',
-  recalculationDueDays: 0,
-  name: '?',
-  dateOfBirth: '?'
+  deceasedName: '?',
+  dateOfBirth: '?',
+  dateOfDeath: '?'
 } as DataModel;
 
 @Injectable({

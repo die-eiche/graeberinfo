@@ -8,25 +8,18 @@ import { DataService } from '../../services/data.service';
 import { DataModel } from '../../services/datamodel';
 
 class BurialPlotInfo {
-  public orderNo: number = 0;
-  public creditorNo: number = 0;
-  public renter: string = '';
   public occupiedFrom: string = ''; // Date | null = null;
-  public rentalUntil: string = ''; // Date | null = null;
-  public recalculationDueDays: number = 0;
-  public name: string = '';
+  public deceasedName: string = '';
   public dateOfBirth: string = ''; // Date | null = null;
+  public dateOfDeath: string = 'tbd...'; // Date | null = null;
 
   public static fromDataModel(model: DataModel): BurialPlotInfo {
     return {
-      orderNo: model.orderNo,
-      creditorNo: model.creditorNo,
-      renter: model.renter,
       occupiedFrom: model.occupiedFrom,
       rentalUntil: model.rentalUntil,
-      recalculationDueDays: model.recalculationDueDays,
-      name: model.name,
-      dateOfBirth: model.dateOfBirth
+      deceasedName: model.deceasedName,
+      dateOfBirth: model.dateOfBirth,
+      dateOfDeath: model.dateOfDeath
     } as BurialPlotInfo;
   }
 }
@@ -37,11 +30,12 @@ class InfopanelData {
   public grave: string = '';
   public remark: string = '';
   public itemNo: string = '';
-  public price15: number = 0;
-  public price5: number = 0;
-  public price1: number = 0;
+  public pricePerYear: number = 0;
   public specialPrice: number = 0;
-  public errorCode: string = '';
+  public orderNo: number = 0;
+  public creditorNo: number = 0;
+  public rentalFrom: string = '';
+  public rentalUntil: string = '';
   public burialPlots: BurialPlotInfo[] = [];
 }
 
@@ -76,15 +70,16 @@ export class InfopanelComponent implements OnInit, OnDestroy {
           )),
         switchMap((records: DataModel[]) => of({
           burialPlotCount: records[0].burialPlotCount,
-          availableBurialPlotCount: records.filter(r => !r.orderNo && !r.renter).length,
+          availableBurialPlotCount: records.filter(r => !r.deceasedName).length,
           grave: records[0].grave,
           remark: records[0].remark,
           itemNo: records[0].itemNo,
-          price15: records[0].price15,
-          price5: records[0].price5,
-          price1: records[0].price1,
+          pricePerYear: records[0].pricePerYear,
           specialPrice: records[0].specialPrice,
-          errorCode: records[0].errorCode,
+          orderNo: records[0].orderNo,
+          creditorNo: records[0].creditorNo,
+          rentalFrom: records[0].rentalFrom,
+          rentalUntil: records[0].rentalUntil,
           burialPlots: records.map(r => BurialPlotInfo.fromDataModel(r))
         } as InfopanelData))
       );

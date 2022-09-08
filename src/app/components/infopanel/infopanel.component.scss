@@ -4,14 +4,20 @@
   right: 0;
   padding: 2px;
   background-color: cornflowerblue;
-  min-width: 200px;
+  width: 30%;
+  color: white;
   cursor: pointer;
 }
 
 .info-container {
   border: 1px solid aliceblue;
   padding: 0.5rem;
-  color: aliceblue;
+  font-family: "Trade Gothic Next Cond", Calibri, sans-serif;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 150px auto;
 }
 
 .info-header {
@@ -34,5 +40,5 @@
 
 .prompt {
   display: inline-block;
-  min-width: 150px;
+  color: #e7e7e7;
 }
