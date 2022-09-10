@@ -25,4 +25,9 @@ export class ApplicationLogComponent implements OnInit {
   public hideLog(): void {
     this.log = '';
   }
+
+  public resetLog(): void {
+    this.logger.resetApplicationLog();
+    this.hideLog();
+  }
 }
