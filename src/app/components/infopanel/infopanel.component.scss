@@ -2,17 +2,18 @@
   position: fixed;
   top: 0;
   right: 0;
-  padding: 2px;
-  background-color: cornflowerblue;
-  width: 30%;
-  color: white;
-  cursor: pointer;
+  font-family: "Trade Gothic Next Cond", Calibri, sans-serif;
 }
 
 .info-container {
+  margin: 2px;
+  background-color: cornflowerblue;
+  min-width: 430px;
+  max-width: 600px;
+  color: white;
+  cursor: pointer;
   border: 1px solid aliceblue;
   padding: 0.5rem;
-  font-family: "Trade Gothic Next Cond", Calibri, sans-serif;
 }
 
 .row {
@@ -41,4 +42,15 @@
 .prompt {
   display: inline-block;
   color: #e7e7e7;
+}
+
+.error-container {
+  margin: 2px;
+  background-color: red;
+  min-width: 430px;
+  max-width: 600px;
+  color: white;
+  cursor: pointer;
+  border: 1px solid darkred;
+  padding: 0.5rem;
 }

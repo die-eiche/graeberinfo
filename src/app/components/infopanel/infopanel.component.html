@@ -1,5 +1,8 @@
-<div (click)="hide()" class="info-panel">
-  <div *ngIf="info$ | async as info" class="info-container">
+<div *ngIf="info$ | async as info"  (click)="hide()" class="info-panel">
+  <div *ngIf="info.errorMessage" class="error-container">
+    {{info.errorMessage}}
+  </div>
+  <div *ngIf="!info.errorMessage" class="info-container">
     <p class="info-header">Grab {{info.grave}}</p>
     <div class="info-text">
       <div class="row">
@@ -8,7 +11,8 @@
       </div>
       <div *ngIf="!info.specialPrice" class="row">
         <p class="prompt">Preise:</p>
-        <p>{{info.pricePerYear | currency}} / {{info.pricePerYear * 5 | currency}} / {{info.pricePerYear * 15 | currency}}</p>
+        <p>{{info.pricePerYear | currency}} / {{info.pricePerYear * 5 | currency}}
+          / {{info.pricePerYear * 15 | currency}}</p>
       </div>
       <div *ngIf="info.specialPrice" class="row">
         <p class="prompt">Sonderpreis</p>

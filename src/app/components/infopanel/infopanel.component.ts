@@ -1,10 +1,10 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NGXLogger } from 'ngx-logger';
 import { Subject } from 'rxjs';
 import { Observable } from 'rxjs/internal/Observable';
 import { of } from 'rxjs/internal/observable/of';
-import { map, switchMap, takeUntil, tap } from 'rxjs/operators';
+import { catchError, map, switchMap, takeUntil, tap } from 'rxjs/operators';
 import { DataService } from '../../services/data.service';
 import { DataModel } from '../../services/datamodel';
 
@@ -38,18 +38,24 @@ class InfopanelData {
   public rentalFrom: string = '';
   public rentalUntil: string = '';
   public burialPlots: BurialPlotInfo[] = [];
+  public errorMessage: string = '';
 }
 
 @Component({
   selector: 'eis-infopanel',
   templateUrl: './infopanel.component.html',
-  styleUrls: ['./infopanel.component.scss']
+  styleUrls: ['./infopanel.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class InfopanelComponent implements OnInit, OnDestroy {
 
   public info$: Observable<InfopanelData>;
 
+  public error$: Observable<string>;
+
   private shutdownSignal: Subject<void> = new Subject<void>();
+
+  private errorSignal: Subject<string> = new Subject<string>();
 
   constructor(
     private router: Router,
@@ -57,15 +63,31 @@ export class InfopanelComponent implements OnInit, OnDestroy {
     private dataService: DataService,
     private logger: NGXLogger) {
 
+    this.error$ = this.errorSignal.asObservable();
+
     this.info$ = this.route.paramMap
       .pipe(
         takeUntil(this.shutdownSignal),
         map(params => params.get('id') || ''),
         tap(id => this.logger.debug(`found '${id}' as route param.`)),
+        tap(id => {
+          if (!id) {
+            throw Error('Es konnte kein gültiges Grab aus der Url ausgelesen werden.');
+          } else {
+            this.errorSignal.next('');
+          }
+        }),
         switchMap(id =>
           this.dataService.readData$().pipe(
             map((records: DataModel[]) => records.filter(record => record.grave === id)),
-            tap(filteredRecords => this.logger.debug(`filtered data to ${filteredRecords.length} records.`))
+            tap(filteredRecords => this.logger.debug(`filtered data to ${filteredRecords.length} records.`)),
+            tap(filteredRecords => {
+              if (!filteredRecords.length) {
+                throw Error(`Es wurden keine Daten für das Grab '${id}' gefunden.`);
+              } else {
+                this.errorSignal.next('');
+              }
+            })
           )),
         switchMap((records: DataModel[]) => of({
           burialPlotCount: records[0].burialPlotCount,
@@ -80,7 +102,11 @@ export class InfopanelComponent implements OnInit, OnDestroy {
           rentalFrom: records[0].rentalFrom,
           rentalUntil: records[0].rentalUntil,
           burialPlots: records.map(r => BurialPlotInfo.fromDataModel(r))
-        } as InfopanelData))
+        } as InfopanelData)),
+        catchError((errorMessage) => {
+          this.errorSignal.next(errorMessage.toString());
+          return of({ errorMessage } as InfopanelData);
+        })
       );
   }
 
