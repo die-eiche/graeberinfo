@@ -1,9 +1,10 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { NGXLogger } from 'ngx-logger';
 import { Subject } from 'rxjs';
 import { Observable } from 'rxjs/internal/Observable';
 import { of } from 'rxjs/internal/observable/of';
-import { map, switchMap, takeUntil } from 'rxjs/operators';
+import { map, switchMap, takeUntil, tap } from 'rxjs/operators';
 import { DataService } from '../../services/data.service';
 import { DataModel } from '../../services/datamodel';
 
@@ -53,20 +54,18 @@ export class InfopanelComponent implements OnInit, OnDestroy {
   constructor(
     private router: Router,
     private route: ActivatedRoute,
-    private dataService: DataService) {
+    private dataService: DataService,
+    private logger: NGXLogger) {
 
     this.info$ = this.route.paramMap
       .pipe(
         takeUntil(this.shutdownSignal),
         map(params => params.get('id') || ''),
+        tap(id => this.logger.debug(`found '${id}' as route param.`)),
         switchMap(id =>
           this.dataService.readData$().pipe(
-            map((records: DataModel[]) => {
-              console.log('id', id);
-              const filteredRecords = records.filter(record => record.grave === id);
-              console.log('no of filtered records', filteredRecords.length);
-              return filteredRecords;
-            })
+            map((records: DataModel[]) => records.filter(record => record.grave === id)),
+            tap(filteredRecords => this.logger.debug(`filtered data to ${filteredRecords.length} records.`))
           )),
         switchMap((records: DataModel[]) => of({
           burialPlotCount: records[0].burialPlotCount,
@@ -89,10 +88,12 @@ export class InfopanelComponent implements OnInit, OnDestroy {
   }
 
   public ngOnDestroy() {
+    this.logger.trace('shutting down infopanel.');
     this.shutdownSignal.next();
   }
 
   public hide(): void {
+    this.logger.trace('hiding infopanel.');
     this.router.navigateByUrl('/').then().catch();
   }
 }

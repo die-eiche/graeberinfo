@@ -1,5 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import { NGXLogger } from 'ngx-logger';
 import { Observable } from 'rxjs';
 import { of } from 'rxjs/internal/observable/of';
 import { map, tap } from 'rxjs/operators';
@@ -32,11 +33,25 @@ export class DataService {
   private cachedRecords: DataModel[] = [];
 
   constructor(
-    private httpClient: HttpClient) {
+    private httpClient: HttpClient,
+    private logger: NGXLogger) {
   }
 
   public readData$(): Observable<DataModel[]> {
-    const uri = environment.dataServerBaseAddress + this.dataUrl + `?code=89TXFKZJCU7Qm2HWjsgP7wuKtp4T3jBp_x-Bi4bjQSqsAzFucMS3-A==&` + new Date().getTime();
+    this.logger.trace('starting DataService.readData$().');
+    const authCodeQuery = environment.authCode
+      ? `code=${environment.authCode}&`
+      : '';
+
+    const uri = environment.dataServerBaseAddress + this.dataUrl + `?${authCodeQuery}` + new Date().getTime();
+    this.logger.trace(`generated uri: ${uri}.`);
+
+    if (this.cachedRecords.length) {
+      this.logger.debug(`using ${this.cachedRecords.length} cached records as data source.`);
+    } else {
+      this.logger.debug('using http request as data source.');
+    }
+
     let source$ = this.cachedRecords.length
       ? of(this.cachedRecords)
       : this.httpClient.get<DataModel[]>(uri);
@@ -45,11 +60,11 @@ export class DataService {
       .pipe(
         map((records: DataModel[]) => {
           if (records.length > 0) {
-            console.log('records found:', records.length, records);
+            this.logger.debug(`found ${records.length} records`);
             return records;
           }
 
-          console.warn('No records found at ' + uri);
+          this.logger.warn('no records found in data source.');
           return [emptyRecord];
         }),
         tap((records: DataModel[]) => this.cachedRecords = records)

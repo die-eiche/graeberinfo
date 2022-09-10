@@ -1,17 +1,23 @@
 import { APP_BASE_HREF, registerLocaleData } from '@angular/common';
+import { HttpClientModule } from '@angular/common/http';
 import localeDe from '@angular/common/locales/de';
 import localeDeExtra from '@angular/common/locales/extra/de';
 import { DEFAULT_CURRENCY_CODE, LOCALE_ID, NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
-import { HttpClientModule } from '@angular/common/http';
+import { INGXLoggerConfig, LoggerModule, NgxLoggerLevel } from 'ngx-logger';
+import { environment } from '../environments/environment';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
-import { SlicedContentComponent } from './components/sliced-content/sliced-content.component';
 import { InfopanelComponent } from './components/infopanel/infopanel.component';
+import { SlicedContentComponent } from './components/sliced-content/sliced-content.component';
 import { DataService } from './services/data.service';
 
 registerLocaleData(localeDe, 'de-DE', localeDeExtra);
+
+const loggerConfig: INGXLoggerConfig = environment.production
+  ? {level: NgxLoggerLevel.WARN, disableConsoleLogging: true, disableFileDetails: true}
+  : {level: NgxLoggerLevel.TRACE, disableConsoleLogging: false, disableFileDetails: true};
 
 @NgModule({
   declarations: [
@@ -22,7 +28,8 @@ registerLocaleData(localeDe, 'de-DE', localeDeExtra);
   imports: [
     BrowserModule,
     AppRoutingModule,
-    HttpClientModule
+    HttpClientModule,
+    LoggerModule.forRoot(loggerConfig)
   ],
   providers: [
     DataService,
