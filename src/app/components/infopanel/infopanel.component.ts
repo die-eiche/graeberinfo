@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { NGXLogger } from 'ngx-logger';
 import { Subject } from 'rxjs';
 import { Observable } from 'rxjs/internal/Observable';
 import { of } from 'rxjs/internal/observable/of';
 import { catchError, map, switchMap, takeUntil, tap } from 'rxjs/operators';
 import { DataService } from '../../services/data.service';
 import { DataModel } from '../../services/datamodel';
+import { LoggingService } from '../../services/logging.service';
 
 class BurialPlotInfo {
   public occupiedFrom: string = ''; // Date | null = null;
@@ -61,7 +61,7 @@ export class InfopanelComponent implements OnInit, OnDestroy {
     private router: Router,
     private route: ActivatedRoute,
     private dataService: DataService,
-    private logger: NGXLogger) {
+    private logger: LoggingService) {
 
     this.error$ = this.errorSignal.asObservable();
 
@@ -105,7 +105,7 @@ export class InfopanelComponent implements OnInit, OnDestroy {
         } as InfopanelData)),
         catchError((errorMessage) => {
           this.errorSignal.next(errorMessage.toString());
-          return of({ errorMessage } as InfopanelData);
+          return of({errorMessage} as InfopanelData);
         })
       );
   }
