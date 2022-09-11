@@ -1,11 +1,11 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import { NGXLogger } from 'ngx-logger';
 import { Observable } from 'rxjs';
 import { of } from 'rxjs/internal/observable/of';
 import { map, tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { DataModel } from './datamodel';
-import { LoggingService } from './logging.service';
 
 const emptyRecord: DataModel = {
   burialPlotCount: 0,
@@ -34,7 +34,7 @@ export class DataService {
 
   constructor(
     private httpClient: HttpClient,
-    private logger: LoggingService) {
+    private logger: NGXLogger) {
   }
 
   public readData$(): Observable<DataModel[]> {

@@ -12,21 +12,18 @@ import { AppComponent } from './app.component';
 import { InfopanelComponent } from './components/infopanel/infopanel.component';
 import { SlicedContentComponent } from './components/sliced-content/sliced-content.component';
 import { DataService } from './services/data.service';
-import { LoggingService } from './services/logging.service';
-import { ApplicationLogComponent } from './components/application-log/application-log.component';
 
 registerLocaleData(localeDe, 'de-DE', localeDeExtra);
 
 const loggerConfig: INGXLoggerConfig = environment.production
-  ? {level: NgxLoggerLevel.TRACE, disableConsoleLogging: true, disableFileDetails: true}
+  ? {level: NgxLoggerLevel.WARN, disableConsoleLogging: true, disableFileDetails: true}
   : {level: NgxLoggerLevel.TRACE, disableConsoleLogging: false, disableFileDetails: true};
 
 @NgModule({
   declarations: [
     AppComponent,
     SlicedContentComponent,
-    InfopanelComponent,
-    ApplicationLogComponent
+    InfopanelComponent
   ],
   imports: [
     BrowserModule,
@@ -36,7 +33,6 @@ const loggerConfig: INGXLoggerConfig = environment.production
   ],
   providers: [
     DataService,
-    LoggingService,
     {provide: LOCALE_ID, useValue: 'de-DE'},
     {provide: DEFAULT_CURRENCY_CODE, useValue: 'EUR'},
     {provide: APP_BASE_HREF, useValue: '/'}
