@@ -385,6 +385,18 @@ def main() -> int:
         append_history({"date": today, "fetched_at_utc": fetched_at, **row})
 
     print(f"\n{len(legs)} Einzelflüge, {len(combinations)} Kombinationen → {LATEST_FILE}")
+
+    try:
+        from predict_trend import run_forecast
+
+        forecast = run_forecast()
+        snapshot["forecast"] = forecast
+        with LATEST_FILE.open("w", encoding="utf-8") as f:
+            json.dump(snapshot, f, indent=2, ensure_ascii=False)
+        print(f"Prognose aktualisiert → {DATA_DIR / 'forecast.json'}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"⚠ Prognose übersprungen: {exc}")
+
     return 0
 
 

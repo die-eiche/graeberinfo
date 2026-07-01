@@ -32,6 +32,21 @@ pip install -r flight-tracker/requirements.txt
 python flight-tracker/fetch_prices.py
 ```
 
+## Preisprognose
+
+Nach jedem Preisabruf berechnet `predict_trend.py` eine **Wahrscheinlichkeits-Schätzung** der Preisentwicklung:
+
+1. **Eigene Historie** – lineare Trendanalyse aus `history.json`
+2. **Buchungsfenster-Modell** – Heuristik für Langstrecken (günstigste Phase typisch 8–12 Wochen vor Abflug, Anstieg in den letzten 3–4 Wochen)
+
+Ergebnis: `data/forecast.json` mit Empfehlung (abwarten / bald buchen / jetzt buchen), 30-/60-Tage-Prognose und Prognose-Kurve im Dashboard.
+
+```bash
+python flight-tracker/predict_trend.py
+```
+
+**Hinweis:** Schätzung ohne Garantie – wird mit jedem weiteren Tagespreis genauer (Konfidenz steigt ab ~14 Messpunkten).
+
 ## Automatische Aktualisierung
 
 GitHub Actions: `.github/workflows/flight-prices.yml` – täglich 06:00 UTC.
