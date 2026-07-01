@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thailand Open-Jaw Flugpreis-Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --card: #1a2332;
+      --text: #e8edf4;
+      --muted: #8b9cb3;
+      --accent: #3d9cf0;
+      --accent2: #5dd39e;
+      --border: #2a3544;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+    h1 { font-size: 1.75rem; margin: 0 0 0.5rem; }
+    .sub { color: var(--muted); margin-bottom: 2rem; }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+    }
+    .card .label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .card .value { font-size: 1.6rem; font-weight: 700; margin-top: 0.25rem; }
+    .card .value small { font-size: 0.9rem; font-weight: 400; color: var(--muted); }
+    section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    section h2 { margin: 0 0 1rem; font-size: 1.1rem; }
+    .chart-wrap { position: relative; height: 380px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { padding: 0.65rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; }
+    tr:hover td { background: rgba(61, 156, 240, 0.06); }
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: rgba(61, 156, 240, 0.15);
+      color: var(--accent);
+    }
+    .badge.pe { background: rgba(93, 211, 158, 0.15); color: var(--accent2); }
+    .filters { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; }
+    .filters select {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.45rem 0.75rem;
+    }
+    .note { font-size: 0.85rem; color: var(--muted); margin-top: 1rem; }
+    .empty { color: var(--muted); padding: 2rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Thailand Open-Jaw · Premium Economy</h1>
+    <p class="sub">
+      Route: Abflughafen → Bangkok (BKK), Rückflug ab Phuket (HKT) · 2 Erwachsene ·
+      Wunsch-Airlines: Singapore Airlines, Cathay Pacific, Thai Airways
+    </p>
+
+    <div class="cards" id="summary-cards"></div>
+
+    <section>
+      <h2>Preisverlauf (Kurve)</h2>
+      <div class="filters">
+        <select id="chart-origin"><option value="">Alle Abflughäfen</option></select>
+        <select id="chart-cabin">
+          <option value="PREMIUM_ECONOMY">Premium Economy</option>
+          <option value="ECONOMY">Economy</option>
+        </select>
+        <select id="chart-airline">
+          <option value="">Alle Airlines</option>
+          <option value="SQ">Singapore Airlines (SQ)</option>
+          <option value="CX">Cathay Pacific (CX)</option>
+          <option value="TG">Thai Airways (TG)</option>
+        </select>
+      </div>
+      <div class="chart-wrap"><canvas id="price-chart"></canvas></div>
+      <p class="note" id="chart-note"></p>
+    </section>
+
+    <section>
+      <h2>Aktuelle Angebote</h2>
+      <div class="filters">
+        <select id="table-cabin">
+          <option value="">Alle Kabinen</option>
+          <option value="PREMIUM_ECONOMY">Premium Economy</option>
+          <option value="ECONOMY">Economy</option>
+        </select>
+        <select id="table-sort">
+          <option value="price">Preis aufsteigend</option>
+          <option value="origin">Abflughafen</option>
+        </select>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Abflughafen</th>
+              <th>Hinflug</th>
+              <th>Rückflug</th>
+              <th>Kabine</th>
+              <th>Airlines</th>
+              <th>Gesamt (2 Pers.)</th>
+              <th>Pro Person</th>
+            </tr>
+          </thead>
+          <tbody id="offers-body"></tbody>
+        </table>
+      </div>
+      <p class="note" id="updated-note"></p>
+    </section>
+  </div>
+
+  <script>
+    const AIRLINE_NAMES = { SQ: 'Singapore Airlines', CX: 'Cathay Pacific', TG: 'Thai Airways' };
+    const ORIGIN_NAMES = {
+      HAM: 'Hamburg', CPH: 'Kopenhagen', FRA: 'Frankfurt', MUC: 'München',
+      BER: 'Berlin', BLL: 'Billund', LBC: 'Lübeck'
+    };
+
+    let latest = { results: [] };
+    let history = [];
+    let chart;
+
+    async function loadData() {
+      const [latestRes, historyRes] = await Promise.all([
+        fetch('data/latest.json').then(r => r.json()).catch(() => ({ results: [] })),
+        fetch('data/history.json').then(r => r.json()).catch(() => [])
+      ]);
+      latest = latestRes;
+      history = historyRes;
+      populateOriginFilter();
+      renderSummary();
+      renderTable();
+      renderChart();
+      document.getElementById('updated-note').textContent =
+        latest.fetched_at
+          ? `Stand: ${latest.fetched_at} (täglich aktualisiert via GitHub Actions)`
+          : 'Noch keine Daten – fetch_prices.py ausführen.';
+    }
+
+    function formatAirlines(codes) {
+      return (codes || []).map(c => AIRLINE_NAMES[c] || c).join(', ') || '–';
+    }
+
+    function renderSummary() {
+      const pe = (latest.results || []).filter(r => r.cabin === 'PREMIUM_ECONOMY');
+      const preferred = pe.filter(r => (r.airlines || []).some(a => ['SQ','CX','TG'].includes(a)));
+      const bestPe = pe.length ? pe.reduce((a, b) => a.price_eur_total < b.price_eur_total ? a : b) : null;
+      const bestPref = preferred.length
+        ? preferred.reduce((a, b) => a.price_eur_total < b.price_eur_total ? a : b)
+        : null;
+
+      const cards = [
+        {
+          label: 'Günstigstes Premium Economy',
+          value: bestPe
+            ? `${bestPe.price_eur_total.toLocaleString('de-DE')} € <small>ab ${ORIGIN_NAMES[bestPe.origin] || bestPe.origin}</small>`
+            : '–'
+        },
+        {
+          label: 'Beste Wunsch-Airline (PE)',
+          value: bestPref
+            ? `${bestPref.price_eur_total.toLocaleString('de-DE')} € <small>${formatAirlines(bestPref.airlines)}</small>`
+            : 'Kein SQ/CX/TG-Angebot'
+        },
+        {
+          label: 'Angebote heute',
+          value: `${(latest.results || []).length} <small>Suchergebnisse</small>`
+        }
+      ];
+
+      document.getElementById('summary-cards').innerHTML = cards.map(c => `
+        <div class="card">
+          <div class="label">${c.label}</div>
+          <div class="value">${c.value}</div>
+        </div>
+      `).join('');
+    }
+
+    function populateOriginFilter() {
+      const origins = [...new Set((latest.results || []).map(r => r.origin))].sort();
+      const sel = document.getElementById('chart-origin');
+      sel.innerHTML = '<option value="">Alle Abflughäfen</option>' +
+        origins.map(o => `<option value="${o}">${ORIGIN_NAMES[o] || o}</option>`).join('');
+    }
+
+    function filterHistory() {
+      const origin = document.getElementById('chart-origin').value;
+      const cabin = document.getElementById('chart-cabin').value;
+      const airline = document.getElementById('chart-airline').value;
+
+      return history.filter(h => {
+        if (origin && h.origin !== origin) return false;
+        if (cabin && h.cabin !== cabin) return false;
+        if (airline && !(h.airlines || []).includes(airline) && h.airline_filter !== airline) return false;
+        return true;
+      });
+    }
+
+    function renderChart() {
+      const filtered = filterHistory();
+      const byDate = {};
+      filtered.forEach(h => {
+        const key = h.date;
+        if (!byDate[key] || h.price_eur_total < byDate[key]) {
+          byDate[key] = h.price_eur_total;
+        }
+      });
+      const labels = Object.keys(byDate).sort();
+      const data = labels.map(d => byDate[d]);
+
+      const ctx = document.getElementById('price-chart');
+      if (chart) chart.destroy();
+
+      if (!labels.length) {
+        document.getElementById('chart-note').textContent =
+          'Noch kein Verlauf – nach dem ersten täglichen Lauf erscheint hier die Kurve.';
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: { labels: [new Date().toISOString().slice(0,10)], datasets: [{ label: 'Preis (EUR)', data: [] }] },
+          options: { responsive: true, maintainAspectRatio: false }
+        });
+        return;
+      }
+
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Günstigster Preis (EUR, 2 Pers.)',
+            data,
+            borderColor: '#3d9cf0',
+            backgroundColor: 'rgba(61, 156, 240, 0.12)',
+            fill: true,
+            tension: 0.25,
+            pointRadius: 5,
+            pointHoverRadius: 7
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              ticks: { callback: v => v.toLocaleString('de-DE') + ' €' },
+              grid: { color: 'rgba(255,255,255,0.06)' }
+            },
+            x: { grid: { display: false } }
+          },
+          plugins: {
+            legend: { labels: { color: '#e8edf4' } },
+            tooltip: {
+              callbacks: {
+                label: ctx => ` ${ctx.parsed.y.toLocaleString('de-DE')} € (2 Pers.)`
+              }
+            }
+          }
+        }
+      });
+
+      const min = Math.min(...data);
+      const max = Math.max(...data);
+      document.getElementById('chart-note').textContent =
+        labels.length > 1
+          ? `Spanne: ${min.toLocaleString('de-DE')} – ${max.toLocaleString('de-DE')} € über ${labels.length} Tage`
+          : `Erster Datenpunkt: ${min.toLocaleString('de-DE')} €`;
+    }
+
+    function renderTable() {
+      const cabin = document.getElementById('table-cabin').value;
+      const sort = document.getElementById('table-sort').value;
+      let rows = [...(latest.results || [])];
+      if (cabin) rows = rows.filter(r => r.cabin === cabin);
+      if (sort === 'price') rows.sort((a, b) => a.price_eur_total - b.price_eur_total);
+      else rows.sort((a, b) => a.origin.localeCompare(b.origin));
+
+      const tbody = document.getElementById('offers-body');
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty">Keine Angebote für die gewählten Filter.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = rows.map(r => `
+        <tr>
+          <td><strong>${ORIGIN_NAMES[r.origin] || r.origin}</strong> (${r.origin})</td>
+          <td>${r.departure}</td>
+          <td>${r.return}</td>
+          <td><span class="badge ${r.cabin === 'PREMIUM_ECONOMY' ? 'pe' : ''}">${r.cabin === 'PREMIUM_ECONOMY' ? 'Premium Eco' : 'Economy'}</span></td>
+          <td>${formatAirlines(r.airlines)}</td>
+          <td><strong>${r.price_eur_total.toLocaleString('de-DE')} €</strong></td>
+          <td>${r.price_eur_per_person.toLocaleString('de-DE')} €</td>
+        </tr>
+      `).join('');
+    }
+
+    ['chart-origin', 'chart-cabin', 'chart-airline'].forEach(id => {
+      document.getElementById(id).addEventListener('change', renderChart);
+    });
+    ['table-cabin', 'table-sort'].forEach(id => {
+      document.getElementById(id).addEventListener('change', renderTable);
+    });
+
+    loadData();
+  </script>
+</body>
+</html>

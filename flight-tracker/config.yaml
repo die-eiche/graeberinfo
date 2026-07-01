@@ -1,0 +1,26 @@
+# Open-Jaw Flugsuche: Hinflug nach Bangkok, Rückflug ab Phuket
+passengers: 2
+currency: EUR
+language: de
+country: DE
+
+origins:
+  - HAM   # Hamburg (nächster großer Flughafen)
+  - CPH   # Kopenhagen
+  - FRA   # Frankfurt
+
+date_pairs:
+  - departure: "2027-01-20"
+    return: "2027-02-17"
+
+cabins:
+  - PREMIUM_ECONOMY
+  - ECONOMY
+
+preferred_airlines:
+  - SQ
+  - CX
+  - TG
+
+search_all_airlines: true
+request_delay_seconds: 1.5

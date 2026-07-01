@@ -5,6 +5,7 @@
 /tmp
 /out-tsc
 /bazel-out
+flight-tracker/__pycache__/
 
 # Node
 /node_modules

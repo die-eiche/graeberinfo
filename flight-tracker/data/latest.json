@@ -1,0 +1,142 @@
+{
+  "fetched_at": "2026-07-01",
+  "fetched_at_utc": "2026-07-01T12:30:00+00:00",
+  "route_description": "Open Jaw: Abflughafen → Bangkok (BKK), Rückflug ab Phuket (HKT)",
+  "passengers": 2,
+  "preferred_airlines": ["SQ", "CX", "TG"],
+  "note": "Erstabruf am 01.07.2026. Termine: Hinflug ca. 20.01.2027, Rückflug ca. 17.02.2027 (4 Wochen).",
+  "results": [
+    {
+      "origin": "HAM",
+      "route": "HAM→BKK / HKT→HAM",
+      "departure": "2027-01-20",
+      "return": "2027-02-17",
+      "cabin": "PREMIUM_ECONOMY",
+      "airline_filter": null,
+      "airlines": [],
+      "price_eur_total": 7556.0,
+      "price_eur_per_person": 3778.0
+    },
+    {
+      "origin": "HAM",
+      "route": "HAM→BKK / HKT→HAM",
+      "departure": "2027-01-18",
+      "return": "2027-02-15",
+      "cabin": "PREMIUM_ECONOMY",
+      "airline_filter": null,
+      "airlines": [],
+      "price_eur_total": 6638.0,
+      "price_eur_per_person": 3319.0
+    },
+    {
+      "origin": "HAM",
+      "route": "HAM→BKK / HKT→HAM",
+      "departure": "2027-01-22",
+      "return": "2027-02-19",
+      "cabin": "PREMIUM_ECONOMY",
+      "airline_filter": null,
+      "airlines": [],
+      "price_eur_total": 7656.0,
+      "price_eur_per_person": 3828.0
+    },
+    {
+      "origin": "HAM",
+      "route": "HAM→BKK / HKT→HAM",
+      "departure": "2027-01-20",
+      "return": "2027-02-17",
+      "cabin": "ECONOMY",
+      "airline_filter": "TG",
+      "airlines": ["TG"],
+      "price_eur_total": 3304.0,
+      "price_eur_per_person": 1652.0
+    },
+    {
+      "origin": "CPH",
+      "route": "CPH→BKK / HKT→CPH",
+      "departure": "2027-01-20",
+      "return": "2027-02-17",
+      "cabin": "PREMIUM_ECONOMY",
+      "airline_filter": null,
+      "airlines": [],
+      "price_eur_total": 6956.0,
+      "price_eur_per_person": 3478.0
+    },
+    {
+      "origin": "CPH",
+      "route": "CPH→BKK / HKT→CPH",
+      "departure": "2027-01-20",
+      "return": "2027-02-17",
+      "cabin": "ECONOMY",
+      "airline_filter": "TG",
+      "airlines": ["TG"],
+      "price_eur_total": 2228.0,
+      "price_eur_per_person": 1114.0
+    },
+    {
+      "origin": "FRA",
+      "route": "FRA→BKK / HKT→FRA",
+      "departure": "2027-01-20",
+      "return": "2027-02-17",
+      "cabin": "ECONOMY",
+      "airline_filter": null,
+      "airlines": [],
+      "price_eur_total": 1598.0,
+      "price_eur_per_person": 799.0
+    },
+    {
+      "origin": "FRA",
+      "route": "FRA→BKK / HKT→FRA",
+      "departure": "2027-01-20",
+      "return": "2027-02-17",
+      "cabin": "ECONOMY",
+      "airline_filter": "TG",
+      "airlines": ["TG"],
+      "price_eur_total": 2306.0,
+      "price_eur_per_person": 1153.0
+    },
+    {
+      "origin": "MUC",
+      "route": "MUC→BKK / HKT→MUC",
+      "departure": "2027-01-20",
+      "return": "2027-02-17",
+      "cabin": "PREMIUM_ECONOMY",
+      "airline_filter": null,
+      "airlines": [],
+      "price_eur_total": 4180.0,
+      "price_eur_per_person": 2090.0
+    },
+    {
+      "origin": "MUC",
+      "route": "MUC→BKK / HKT→MUC",
+      "departure": "2027-01-20",
+      "return": "2027-02-17",
+      "cabin": "ECONOMY",
+      "airline_filter": "TG",
+      "airlines": ["TG"],
+      "price_eur_total": 2266.0,
+      "price_eur_per_person": 1133.0
+    },
+    {
+      "origin": "BER",
+      "route": "BER→BKK / HKT→BER",
+      "departure": "2027-01-20",
+      "return": "2027-02-17",
+      "cabin": "PREMIUM_ECONOMY",
+      "airline_filter": null,
+      "airlines": [],
+      "price_eur_total": 5176.0,
+      "price_eur_per_person": 2588.0
+    },
+    {
+      "origin": "BER",
+      "route": "BER→BKK / HKT→BER",
+      "departure": "2027-01-20",
+      "return": "2027-02-17",
+      "cabin": "ECONOMY",
+      "airline_filter": null,
+      "airlines": [],
+      "price_eur_total": 1926.0,
+      "price_eur_per_person": 963.0
+    }
+  ]
+}
