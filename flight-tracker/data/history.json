@@ -1,54 +1,22 @@
 [
   {
     "date": "2026-07-01",
-    "fetched_at_utc": "2026-07-01T12:30:00+00:00",
-    "origin": "HAM",
-    "route": "HAM→BKK / HKT→HAM",
-    "departure": "2027-01-20",
-    "return": "2027-02-17",
-    "cabin": "PREMIUM_ECONOMY",
-    "airline_filter": null,
-    "airlines": [],
-    "price_eur_total": 7556.0,
-    "price_eur_per_person": 3778.0
-  },
-  {
-    "date": "2026-07-01",
-    "fetched_at_utc": "2026-07-01T12:30:00+00:00",
+    "type": "combination",
     "origin": "CPH",
-    "route": "CPH→BKK / HKT→CPH",
-    "departure": "2027-01-20",
-    "return": "2027-02-17",
-    "cabin": "ECONOMY",
-    "airline_filter": "TG",
-    "airlines": ["TG"],
-    "price_eur_total": 2228.0,
-    "price_eur_per_person": 1114.0
-  },
-  {
-    "date": "2026-07-01",
-    "fetched_at_utc": "2026-07-01T12:30:00+00:00",
-    "origin": "FRA",
-    "route": "FRA→BKK / HKT→FRA",
-    "departure": "2027-01-20",
-    "return": "2027-02-17",
-    "cabin": "ECONOMY",
-    "airline_filter": null,
-    "airlines": [],
-    "price_eur_total": 1598.0,
-    "price_eur_per_person": 799.0
-  },
-  {
-    "date": "2026-07-01",
-    "fetched_at_utc": "2026-07-01T12:30:00+00:00",
-    "origin": "MUC",
-    "route": "MUC→BKK / HKT→MUC",
-    "departure": "2027-01-20",
-    "return": "2027-02-17",
+    "origin_label": "Kopenhagen",
     "cabin": "PREMIUM_ECONOMY",
-    "airline_filter": null,
-    "airlines": [],
-    "price_eur_total": 4180.0,
-    "price_eur_per_person": 2090.0
+    "ground_cost_eur": 90,
+    "price_eur_total": 3505,
+    "price_eur_per_person": 1752.5
+  },
+  {
+    "date": "2026-07-01",
+    "type": "combination",
+    "origin": "HAM",
+    "origin_label": "Hamburg",
+    "cabin": "PREMIUM_ECONOMY",
+    "ground_cost_eur": 50,
+    "price_eur_total": 4377,
+    "price_eur_per_person": 2188.5
   }
 ]

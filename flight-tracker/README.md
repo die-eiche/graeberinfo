@@ -1,35 +1,41 @@
-# Thailand Open-Jaw Flugpreis-Tracker
+# Thailand Flugpreis-Tracker · Ahrensbök
 
-Tägliche Preisüberwachung für eure Reise:
+Tägliche Preisüberwachung für eure Reise ab **Ahrensbök/Lübeck**:
 
-- **Hinflug:** Abflughafen → Bangkok (BKK), ca. 20. Januar ± einige Tage
-- **Rückflug:** Phuket (HKT) → Abflughafen, ca. 4 Wochen später
-- **2 Erwachsene**, Premium Economy (plus Economy zum Vergleich)
-- **Abflughäfen:** HAM, CPH, FRA, MUC, BER, BLL, LBC
-- **Wunsch-Airlines:** Singapore Airlines (SQ), Cathay Pacific (CX), Thai Airways (TG)
+- **Hinflug:** naher Abflughafen → Bangkok (BKK), ca. 20.01.2027 ± einige Tage
+- **Rückflug:** Phuket (HKT) → naher Abflughafen, ca. 4 Wochen später
+- **Getrennte Flüge** (unterschiedliche Airlines erlaubt) – kein Open Jaw nötig
+- **2 Erwachsene**, Premium Economy
+- **Gesamtpreis inkl. Anreise** (Bahn nach Kopenhagen, Auto/Bahn nach Hamburg)
 
-## Dashboard öffnen
+## Nahe Abflughäfen (kein Umweg nach München)
 
-Nach dem ersten Datenabruf `index.html` im Browser öffnen (oder via GitHub Pages deployen).
+| Flughafen | Anreise ab Ahrensbök | ca. Kosten (2 Pers.) |
+|-----------|----------------------|----------------------|
+| **Lübeck (LBC)** | ~20 min Auto | ~30 € |
+| **Hamburg (HAM)** | ~1 h Auto/Bahn | ~50 € |
+| **Kopenhagen (CPH)** | ~6 h Bahn (Lübeck Hbf → København H, 1× Umstieg) | ~90 € |
+| **Billund (BLL)** | ~3,5 h Auto | ~110 € |
 
-## Manueller Preisabruf
+**Bahn Lübeck → Kopenhagen:** EuroCity via Hamburg, Reisezeit ca. 6–6,5 h, Tickets ab ca. 45 €/Person (Super Sparpreis), kein Übernachten nötig bei Morgenabfahrt.
+
+**Lübeck (LBC):** Kein Langstreckenangebot nach Bangkok – nur Ryanair (Europa). Für Thailand über **Hamburg** oder **Kopenhagen**.
+
+## Dashboard
+
+`index.html` im Browser öffnen oder via GitHub Pages deployen.
+
+## Manueller Abruf
 
 ```bash
-cd flight-tracker
-pip install -r requirements.txt
-python fetch_prices.py
+pip install -r flight-tracker/requirements.txt
+python flight-tracker/fetch_prices.py
 ```
 
-## Automatische tägliche Aktualisierung
+## Automatische Aktualisierung
 
-GitHub Actions Workflow `.github/workflows/flight-prices.yml` läuft täglich um 06:00 UTC und committet neue Preise in `data/history.json` und `data/latest.json`.
-
-**GitHub Pages (optional):** Repository → Settings → Pages → Source: `main`, Folder: `/flight-tracker`
-
-## Datenquelle
-
-Preise stammen von Google Flights (über die [fli](https://pypi.org/project/flights/) Python-Bibliothek). Es handelt sich um Suchergebnisse zum Abrufzeitpunkt – Buchungspreise können abweichen.
+GitHub Actions: `.github/workflows/flight-prices.yml` – täglich 06:00 UTC.
 
 ## Konfiguration
 
-Suchparameter in `config.yaml` anpassen (Termine, Flughäfen, Kabinen).
+`config.yaml`: Termine, Flughäfen, Bodenkosten, Kabinen anpassen.

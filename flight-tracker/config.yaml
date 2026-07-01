@@ -1,17 +1,46 @@
-# Open-Jaw Flugsuche: Hinflug nach Bangkok, Rückflug ab Phuket
+# Getrennte Hin- und Rückflüge + Bodenanbindung ab Ahrensbök/Lübeck
 passengers: 2
 currency: EUR
 language: de
 country: DE
+request_delay_seconds: 1.5
 
-origins:
-  - HAM   # Hamburg (nächster großer Flughafen)
-  - CPH   # Kopenhagen
-  - FRA   # Frankfurt
+# Suchmodus: separate (empfohlen) oder open_jaw (optional)
+search_mode: separate
+
+home_location: "Ahrensbök / Lübeck (23623)"
 
 date_pairs:
   - departure: "2027-01-20"
     return: "2027-02-17"
+  - departure: "2027-01-18"
+    return: "2027-02-15"
+  - departure: "2027-01-22"
+    return: "2027-02-19"
+
+# Nur nahe Abflughäfen – kein Umweg nach München o.ä.
+flight_origins:
+  - code: HAM
+    label: Hamburg
+    ground_from_home_eur: 25      # Auto/Bahn RE nach HAM, pro Person (Schätzung)
+    ground_hours: 1.0
+    overnight_needed: false
+  - code: LBC
+    label: Lübeck
+    ground_from_home_eur: 15      # sehr nah Ahrensbök
+    ground_hours: 0.3
+    overnight_needed: false
+  - code: CPH
+    label: Kopenhagen
+    ground_from_home_eur: 45      # Bahn Lübeck Hbf → København H (Super Sparpreis)
+    ground_hours: 6.0
+    ground_mode: Bahn
+    overnight_needed: false
+  - code: BLL
+    label: Billund
+    ground_from_home_eur: 55      # Auto + Fähre/Brücke oder Bahn+Bus
+    ground_hours: 3.5
+    overnight_needed: false
 
 cabins:
   - PREMIUM_ECONOMY
@@ -23,4 +52,6 @@ preferred_airlines:
   - TG
 
 search_all_airlines: true
-request_delay_seconds: 1.5
+
+# Beste Kombinationen aus Hin+Rück+Boden berechnen
+compute_combinations: true

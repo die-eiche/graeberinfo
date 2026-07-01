@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Thailand Open-Jaw Flugpreis-Tracker</title>
+  <title>Thailand Flugpreis-Tracker · Ahrensbök</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     :root {
@@ -78,10 +78,10 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>Thailand Open-Jaw · Premium Economy</h1>
+    <h1>Thailand-Reise · Getrennte Flüge ab Ahrensbök</h1>
     <p class="sub">
-      Route: Abflughafen → Bangkok (BKK), Rückflug ab Phuket (HKT) · 2 Erwachsene ·
-      Wunsch-Airlines: Singapore Airlines, Cathay Pacific, Thai Airways
+      Hinflug: Abflughafen → Bangkok (BKK) · Rückflug: Phuket (HKT) → Abflughafen · 2 Erwachsene ·
+      Premium Economy · Gesamtpreis inkl. Anreise (Bahn/Auto) · Wunsch-Airlines: SQ, CX, TG
     </p>
 
     <div class="cards" id="summary-cards"></div>
@@ -106,15 +106,15 @@
     </section>
 
     <section>
-      <h2>Aktuelle Angebote</h2>
+      <h2>Gesamtkosten inkl. Anreise (beste Kombinationen)</h2>
       <div class="filters">
         <select id="table-cabin">
           <option value="">Alle Kabinen</option>
-          <option value="PREMIUM_ECONOMY">Premium Economy</option>
+          <option value="PREMIUM_ECONOMY" selected>Premium Economy</option>
           <option value="ECONOMY">Economy</option>
         </select>
         <select id="table-sort">
-          <option value="price">Preis aufsteigend</option>
+          <option value="price">Gesamtpreis aufsteigend</option>
           <option value="origin">Abflughafen</option>
         </select>
       </div>
@@ -123,10 +123,12 @@
           <thead>
             <tr>
               <th>Abflughafen</th>
+              <th>Anreise</th>
               <th>Hinflug</th>
               <th>Rückflug</th>
               <th>Kabine</th>
-              <th>Airlines</th>
+              <th>Flüge</th>
+              <th>Boden</th>
               <th>Gesamt (2 Pers.)</th>
               <th>Pro Person</th>
             </tr>
@@ -136,6 +138,25 @@
       </div>
       <p class="note" id="updated-note"></p>
     </section>
+
+    <section>
+      <h2>Einzelne Flugstrecken</h2>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Richtung</th>
+              <th>Strecke</th>
+              <th>Datum</th>
+              <th>Kabine</th>
+              <th>Airlines</th>
+              <th>Preis (2 Pers.)</th>
+            </tr>
+          </thead>
+          <tbody id="legs-body"></tbody>
+        </table>
+      </div>
+    </section>
   </div>
 
   <script>
@@ -144,8 +165,14 @@
       HAM: 'Hamburg', CPH: 'Kopenhagen', FRA: 'Frankfurt', MUC: 'München',
       BER: 'Berlin', BLL: 'Billund', LBC: 'Lübeck'
     };
+    const GROUND_INFO = {
+      HAM: 'ca. 1 h Auto/Bahn',
+      LBC: 'ca. 20 min',
+      CPH: 'ca. 6 h Bahn (Lübeck Hbf)',
+      BLL: 'ca. 3,5 h Auto'
+    };
 
-    let latest = { results: [] };
+    let latest = { combinations: [], legs: [], results: [] };
     let history = [];
     let chart;
 
@@ -156,9 +183,13 @@
       ]);
       latest = latestRes;
       history = historyRes;
+      if (!latest.combinations?.length && latest.results?.length) {
+        latest.combinations = latest.results.filter(r => r.type === 'combination' || r.ground_cost_eur != null);
+      }
       populateOriginFilter();
       renderSummary();
       renderTable();
+      renderLegs();
       renderChart();
       document.getElementById('updated-note').textContent =
         latest.fetched_at
@@ -171,29 +202,30 @@
     }
 
     function renderSummary() {
-      const pe = (latest.results || []).filter(r => r.cabin === 'PREMIUM_ECONOMY');
-      const preferred = pe.filter(r => (r.airlines || []).some(a => ['SQ','CX','TG'].includes(a)));
+      const combos = latest.combinations || [];
+      const pe = combos.filter(r => r.cabin === 'PREMIUM_ECONOMY');
       const bestPe = pe.length ? pe.reduce((a, b) => a.price_eur_total < b.price_eur_total ? a : b) : null;
-      const bestPref = preferred.length
-        ? preferred.reduce((a, b) => a.price_eur_total < b.price_eur_total ? a : b)
-        : null;
+      const bestHam = pe.find(r => r.origin === 'HAM');
+      const bestCph = pe.find(r => r.origin === 'CPH');
 
       const cards = [
         {
-          label: 'Günstigstes Premium Economy',
+          label: 'Günstigste Gesamtreise (PE)',
           value: bestPe
-            ? `${bestPe.price_eur_total.toLocaleString('de-DE')} € <small>ab ${ORIGIN_NAMES[bestPe.origin] || bestPe.origin}</small>`
+            ? `${bestPe.price_eur_total.toLocaleString('de-DE')} € <small>ab ${bestPe.origin_label || ORIGIN_NAMES[bestPe.origin]} inkl. Anreise</small>`
             : '–'
         },
         {
-          label: 'Beste Wunsch-Airline (PE)',
-          value: bestPref
-            ? `${bestPref.price_eur_total.toLocaleString('de-DE')} € <small>${formatAirlines(bestPref.airlines)}</small>`
-            : 'Kein SQ/CX/TG-Angebot'
+          label: 'Hamburg (PE + Anreise)',
+          value: bestHam
+            ? `${bestHam.price_eur_total.toLocaleString('de-DE')} € <small>kein Übernachten nötig</small>`
+            : '–'
         },
         {
-          label: 'Angebote heute',
-          value: `${(latest.results || []).length} <small>Suchergebnisse</small>`
+          label: 'Kopenhagen per Bahn (PE)',
+          value: bestCph
+            ? `${bestCph.price_eur_total.toLocaleString('de-DE')} € <small>+${bestCph.ground_cost_eur} € Bahn</small>`
+            : '–'
         }
       ];
 
@@ -206,7 +238,7 @@
     }
 
     function populateOriginFilter() {
-      const origins = [...new Set((latest.results || []).map(r => r.origin))].sort();
+      const origins = [...new Set((latest.combinations || []).map(r => r.origin))].sort();
       const sel = document.getElementById('chart-origin');
       sel.innerHTML = '<option value="">Alle Abflughäfen</option>' +
         origins.map(o => `<option value="${o}">${ORIGIN_NAMES[o] || o}</option>`).join('');
@@ -298,26 +330,47 @@
     function renderTable() {
       const cabin = document.getElementById('table-cabin').value;
       const sort = document.getElementById('table-sort').value;
-      let rows = [...(latest.results || [])];
+      let rows = [...(latest.combinations || [])];
       if (cabin) rows = rows.filter(r => r.cabin === cabin);
       if (sort === 'price') rows.sort((a, b) => a.price_eur_total - b.price_eur_total);
       else rows.sort((a, b) => a.origin.localeCompare(b.origin));
 
       const tbody = document.getElementById('offers-body');
       if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty">Keine Angebote für die gewählten Filter.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="empty">Keine Kombinationen für die gewählten Filter.</td></tr>';
         return;
       }
 
       tbody.innerHTML = rows.map(r => `
         <tr>
-          <td><strong>${ORIGIN_NAMES[r.origin] || r.origin}</strong> (${r.origin})</td>
+          <td><strong>${r.origin_label || ORIGIN_NAMES[r.origin] || r.origin}</strong></td>
+          <td>${GROUND_INFO[r.origin] || r.ground_mode || '–'}</td>
           <td>${r.departure}</td>
           <td>${r.return}</td>
           <td><span class="badge ${r.cabin === 'PREMIUM_ECONOMY' ? 'pe' : ''}">${r.cabin === 'PREMIUM_ECONOMY' ? 'Premium Eco' : 'Economy'}</span></td>
-          <td>${formatAirlines(r.airlines)}</td>
+          <td>${formatAirlines([...(r.outbound_airlines||[]), ...(r.inbound_airlines||[])])}</td>
+          <td>${(r.ground_cost_eur||0).toLocaleString('de-DE')} €</td>
           <td><strong>${r.price_eur_total.toLocaleString('de-DE')} €</strong></td>
           <td>${r.price_eur_per_person.toLocaleString('de-DE')} €</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderLegs() {
+      const tbody = document.getElementById('legs-body');
+      const legs = latest.legs || [];
+      if (!legs.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">Noch keine Einzelstrecken geladen.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = legs.map(l => `
+        <tr>
+          <td>${l.direction === 'outbound' ? 'Hinflug' : 'Rückflug'}</td>
+          <td>${l.from} → ${l.to}</td>
+          <td>${l.date}</td>
+          <td><span class="badge ${l.cabin === 'PREMIUM_ECONOMY' ? 'pe' : ''}">${l.cabin === 'PREMIUM_ECONOMY' ? 'PE' : 'Eco'}</span></td>
+          <td>${formatAirlines(l.airlines)}</td>
+          <td>${l.price_eur_total.toLocaleString('de-DE')} €</td>
         </tr>
       `).join('');
     }
