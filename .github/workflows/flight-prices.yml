@@ -1,0 +1,43 @@
+name: Tägliche Flugpreis-Aktualisierung
+
+on:
+  schedule:
+    # Täglich um 06:00 UTC (07:00/08:00 MEZ/MESZ)
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-prices:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Abhängigkeiten installieren
+        run: pip install -r flight-tracker/requirements.txt
+
+      - name: Flugpreise abrufen
+        run: python flight-tracker/fetch_prices.py
+
+      - name: Preisprognose berechnen
+        run: python flight-tracker/predict_trend.py
+
+      - name: Änderungen committen
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add flight-tracker/data/
+          if git diff --staged --quiet; then
+            echo "Keine Preisänderungen"
+          else
+            git commit -m "Flugpreise aktualisiert $(date -u +%Y-%m-%d)"
+            git push
+          fi
