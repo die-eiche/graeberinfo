@@ -2,7 +2,7 @@
 
 Tägliche Preisüberwachung für eure Reise ab **Ahrensbök/Lübeck**:
 
-- **Hinflug:** naher Abflughafen → Bangkok (BKK), ca. 20.01.2027 ± einige Tage
+- **Hinflug:** naher Abflughafen → Bangkok (BKK), frühestens 03.02.2027, bevorzugt 04.02.2027 ± einige Tage
 - **Rückflug:** Phuket (HKT) → naher Abflughafen, ca. 4 Wochen später
 - **Getrennte Flüge** (unterschiedliche Airlines erlaubt) – kein Open Jaw nötig
 - **2 Erwachsene**, Premium Economy
@@ -28,8 +28,8 @@ Tägliche Preisüberwachung für eure Reise ab **Ahrensbök/Lübeck**:
 ## Manueller Abruf
 
 ```bash
-pip install -r flight-tracker/requirements.txt
-python flight-tracker/fetch_prices.py
+pip install -r requirements.txt
+python fetch_prices.py
 ```
 
 ## Preisprognose
@@ -42,7 +42,7 @@ Nach jedem Preisabruf berechnet `predict_trend.py` eine **Wahrscheinlichkeits-Sc
 Ergebnis: `data/forecast.json` mit Empfehlung (abwarten / bald buchen / jetzt buchen), 30-/60-Tage-Prognose und Prognose-Kurve im Dashboard.
 
 ```bash
-python flight-tracker/predict_trend.py
+python predict_trend.py
 ```
 
 **Hinweis:** Schätzung ohne Garantie – wird mit jedem weiteren Tagespreis genauer (Konfidenz steigt ab ~14 Messpunkten).
@@ -50,6 +50,8 @@ python flight-tracker/predict_trend.py
 ## Automatische Aktualisierung
 
 GitHub Actions: `.github/workflows/flight-prices.yml` – täglich 06:00 UTC.
+
+> Eigenständiger Vorgang – nicht Teil von GraeberInfo. Repository: `die-eiche/thailand-flug-tracker` (oder dieses Verzeichnis bis zur Repo-Auslagerung).
 
 ## Konfiguration
 

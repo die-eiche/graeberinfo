@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'thailand-flug-tracker/**'
-      - '.github/workflows/deploy-flight-tracker-pages.yml'
+      - '**'
+      - '!.github/workflows/flight-prices.yml'
   workflow_dispatch:
 
 permissions:
@@ -14,7 +14,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages-flight-tracker
+  group: pages-thailand-flug-tracker
   cancel-in-progress: false
 
 jobs:
@@ -35,7 +35,7 @@ jobs:
       - name: Dashboard hochladen
         uses: actions/upload-pages-artifact@v3
         with:
-          path: thailand-flug-tracker
+          path: .
 
       - name: Auf GitHub Pages deployen
         id: deployment

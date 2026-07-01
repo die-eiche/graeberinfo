@@ -1,0 +1,14 @@
+{
+  "fetched_at": null,
+  "fetched_at_utc": null,
+  "home_location": "Ahrensbök / Lübeck (23623)",
+  "route_description": "Getrennte Flüge: Europa → Bangkok (BKK), Phuket (HKT) → Europa (inkl. Bodenkosten ab Zuhause)",
+  "passengers": 2,
+  "preferred_airlines": ["SQ", "CX", "TG"],
+  "search_mode": "separate",
+  "date_pairs_note": "Abflug frühestens 2027-02-03, bevorzugt 2027-02-04 (4 Wochen Aufenthalt)",
+  "legs": [],
+  "combinations": [],
+  "open_jaw": [],
+  "results": []
+}
