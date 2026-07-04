@@ -20,7 +20,6 @@
       height: 100%;
       overflow: hidden;
       background: #000;
-      touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
     }
 
@@ -31,11 +30,19 @@
       height: 100%;
       height: 100dvh;
       width: 100dvw;
+      overflow: hidden;
+      background: #000;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      touch-action: none;
+    }
+
+    .bild-stage {
+      width: 100%;
+      height: 100%;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #000;
-      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      touch-action: none;
     }
 
     .bild-anzeige img {
@@ -46,18 +53,41 @@
       max-height: 100%;
       object-fit: contain;
       object-position: center;
+      transform-origin: center center;
+      will-change: transform;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-drag: none;
     }
   </style>
 </head>
 <body>
   <div class="bild-anzeige">
-    <img id="plan-bild" src="" alt="Grundriss">
+    <div class="bild-stage">
+      <img id="plan-bild" src="" alt="Grundriss">
+    </div>
   </div>
   <script>
     (function () {
       var params = new URLSearchParams(window.location.search);
       var bild = document.getElementById('plan-bild');
+      var stage = bild.parentElement;
       var src = params.get('src') || params.get('bild') || params.get('img') || '';
+
+      var scale = 1;
+      var minScale = 1;
+      var maxScale = 5;
+      var translateX = 0;
+      var translateY = 0;
+
+      var activeTouches = new Map();
+      var pinchStartDistance = 0;
+      var pinchStartScale = 1;
+      var panStartX = 0;
+      var panStartY = 0;
+      var panOriginX = 0;
+      var panOriginY = 0;
+      var lastTapTime = 0;
 
       if (src) {
         bild.src = src;
@@ -67,10 +97,146 @@
         bild.alt = 'Bild konnte nicht geladen werden';
       });
 
-      function vollbildAnpassen() {
-        document.documentElement.style.height = window.innerHeight + 'px';
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
       }
 
+      function getTouchDistance(touches) {
+        var dx = touches[0].clientX - touches[1].clientX;
+        var dy = touches[0].clientY - touches[1].clientY;
+        return Math.hypot(dx, dy);
+      }
+
+      function getTouchCenter(touches) {
+        return {
+          x: (touches[0].clientX + touches[1].clientX) / 2,
+          y: (touches[0].clientY + touches[1].clientY) / 2
+        };
+      }
+
+      function getMaxOffset() {
+        var rect = bild.getBoundingClientRect();
+        var stageRect = stage.getBoundingClientRect();
+        var extraWidth = Math.max(0, rect.width - stageRect.width);
+        var extraHeight = Math.max(0, rect.height - stageRect.height);
+        return {
+          x: extraWidth / 2,
+          y: extraHeight / 2
+        };
+      }
+
+      function clampTranslation() {
+        var max = getMaxOffset();
+        translateX = clamp(translateX, -max.x, max.x);
+        translateY = clamp(translateY, -max.y, max.y);
+      }
+
+      function applyTransform() {
+        clampTranslation();
+        bild.style.transform = 'translate(' + translateX + 'px, ' + translateY + 'px) scale(' + scale + ')';
+      }
+
+      function resetTransform() {
+        scale = 1;
+        translateX = 0;
+        translateY = 0;
+        applyTransform();
+      }
+
+      function onTouchStart(event) {
+        for (var i = 0; i < event.changedTouches.length; i++) {
+          var touch = event.changedTouches[i];
+          activeTouches.set(touch.identifier, touch);
+        }
+
+        if (activeTouches.size === 2) {
+          var touches = Array.from(activeTouches.values());
+          pinchStartDistance = getTouchDistance(touches);
+          pinchStartScale = scale;
+        } else if (activeTouches.size === 1 && scale > 1) {
+          var single = Array.from(activeTouches.values())[0];
+          panStartX = single.clientX;
+          panStartY = single.clientY;
+          panOriginX = translateX;
+          panOriginY = translateY;
+        }
+
+        if (activeTouches.size > 1) {
+          event.preventDefault();
+        }
+      }
+
+      function onTouchMove(event) {
+        for (var i = 0; i < event.changedTouches.length; i++) {
+          var touch = event.changedTouches[i];
+          if (activeTouches.has(touch.identifier)) {
+            activeTouches.set(touch.identifier, touch);
+          }
+        }
+
+        if (activeTouches.size === 2) {
+          event.preventDefault();
+          var touches = Array.from(activeTouches.values());
+          var distance = getTouchDistance(touches);
+          if (pinchStartDistance > 0) {
+            scale = clamp(pinchStartScale * (distance / pinchStartDistance), minScale, maxScale);
+            if (scale <= minScale + 0.01) {
+              scale = minScale;
+              translateX = 0;
+              translateY = 0;
+            }
+            applyTransform();
+          }
+        } else if (activeTouches.size === 1 && scale > 1) {
+          event.preventDefault();
+          var current = Array.from(activeTouches.values())[0];
+          translateX = panOriginX + (current.clientX - panStartX);
+          translateY = panOriginY + (current.clientY - panStartY);
+          applyTransform();
+        }
+      }
+
+      function onTouchEnd(event) {
+        for (var i = 0; i < event.changedTouches.length; i++) {
+          activeTouches.delete(event.changedTouches[i].identifier);
+        }
+
+        if (activeTouches.size < 2) {
+          pinchStartDistance = 0;
+        }
+
+        if (activeTouches.size === 0) {
+          if (scale <= minScale + 0.01) {
+            resetTransform();
+          } else {
+            applyTransform();
+          }
+
+          var now = Date.now();
+          if (now - lastTapTime < 300) {
+            resetTransform();
+          }
+          lastTapTime = now;
+        } else if (activeTouches.size === 1 && scale > 1) {
+          var single = Array.from(activeTouches.values())[0];
+          panStartX = single.clientX;
+          panStartY = single.clientY;
+          panOriginX = translateX;
+          panOriginY = translateY;
+        }
+      }
+
+      stage.addEventListener('touchstart', onTouchStart, { passive: false });
+      stage.addEventListener('touchmove', onTouchMove, { passive: false });
+      stage.addEventListener('touchend', onTouchEnd);
+      stage.addEventListener('touchcancel', onTouchEnd);
+
+      function vollbildAnpassen() {
+        document.documentElement.style.height = window.innerHeight + 'px';
+        applyTransform();
+      }
+
+      bild.addEventListener('load', applyTransform);
       window.addEventListener('resize', vollbildAnpassen);
       window.addEventListener('orientationchange', vollbildAnpassen);
       vollbildAnpassen();
