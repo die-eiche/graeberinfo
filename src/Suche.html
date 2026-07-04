@@ -68,6 +68,7 @@
       var viewport = document.getElementById('viewport');
       var bild = document.getElementById('plan-bild');
       var src = params.get('src') || params.get('bild') || params.get('img') || '';
+      var boden = params.get('boden') || '';
       var panzoomInstance = null;
 
       function initPanzoom() {
@@ -99,6 +100,8 @@
       function bindImage() {
         if (src) {
           bild.src = src;
+        } else if (boden) {
+          bild.src = 'bilder/' + boden;
         }
         if (!bild.getAttribute('src')) {
           return;

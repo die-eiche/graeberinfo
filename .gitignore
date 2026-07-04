@@ -2,6 +2,7 @@
 
 # Compiled output
 /dist
+/grabbuch
 /tmp
 /out-tsc
 /bazel-out
