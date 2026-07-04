@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
@@ -20,8 +20,12 @@
       height: 100%;
       overflow: hidden;
       background: #000;
+      touch-action: none;
+      overscroll-behavior: none;
       -webkit-tap-highlight-color: transparent;
       -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
     }
 
     .bild-anzeige {
@@ -33,8 +37,8 @@
       width: 100dvw;
       overflow: hidden;
       background: #000;
-      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
       touch-action: none;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     }
 
     .bild-viewport {
@@ -42,11 +46,6 @@
       height: 100%;
       overflow: hidden;
       touch-action: none;
-      cursor: grab;
-    }
-
-    .bild-viewport.is-panning {
-      cursor: grabbing;
     }
 
     .bild-content {
@@ -69,7 +68,6 @@
       object-fit: contain;
       object-position: center;
       pointer-events: none;
-      user-select: none;
       -webkit-user-drag: none;
     }
   </style>
@@ -85,31 +83,26 @@
   <script>
     (function () {
       var params = new URLSearchParams(window.location.search);
-      var viewport = document.getElementById('bild-viewport');
       var content = document.getElementById('bild-content');
       var bild = document.getElementById('plan-bild');
       var src = params.get('src') || params.get('bild') || params.get('img') || '';
 
       var scale = 1;
       var minScale = 1;
-      var maxScale = 5;
-      var translateX = 0;
-      var translateY = 0;
+      var maxScale = 6;
+      var posX = 0;
+      var posY = 0;
 
-      var pointers = new Map();
       var pinchStartDistance = 0;
       var pinchStartScale = 1;
+      var pinchStartX = 0;
+      var pinchStartY = 0;
       var panStartX = 0;
       var panStartY = 0;
       var panOriginX = 0;
       var panOriginY = 0;
-      var gestureStartScale = 1;
-      var gestureActive = false;
-      var hadMultiTouch = false;
-      var lastTapTime = 0;
-      var lastTapX = 0;
-      var lastTapY = 0;
-      var supportsGestures = 'ongesturestart' in window;
+      var isPanning = false;
+      var isPinching = false;
 
       if (src) {
         bild.src = src;
@@ -123,223 +116,138 @@
         return Math.min(max, Math.max(min, value));
       }
 
-      function getDistance(a, b) {
-        return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      function touchDistance(touches) {
+        var dx = touches[0].clientX - touches[1].clientX;
+        var dy = touches[0].clientY - touches[1].clientY;
+        return Math.hypot(dx, dy);
       }
 
-      function getMaxOffset() {
-        var rect = content.getBoundingClientRect();
-        var viewRect = viewport.getBoundingClientRect();
+      function touchCenter(touches) {
         return {
-          x: Math.max(0, (rect.width - viewRect.width) / 2),
-          y: Math.max(0, (rect.height - viewRect.height) / 2)
+          x: (touches[0].clientX + touches[1].clientX) / 2,
+          y: (touches[0].clientY + touches[1].clientY) / 2
         };
-      }
-
-      function clampTranslation() {
-        var max = getMaxOffset();
-        translateX = clamp(translateX, -max.x, max.x);
-        translateY = clamp(translateY, -max.y, max.y);
       }
 
       function applyTransform() {
         if (scale <= minScale) {
           scale = minScale;
-          translateX = 0;
-          translateY = 0;
-        } else {
-          clampTranslation();
+          posX = 0;
+          posY = 0;
         }
-        content.style.transform = 'translate(' + translateX + 'px, ' + translateY + 'px) scale(' + scale + ')';
-        viewport.classList.toggle('is-panning', pointers.size === 1 && scale > minScale);
+        content.style.transform = 'translate3d(' + posX + 'px, ' + posY + 'px, 0) scale(' + scale + ')';
       }
 
       function resetTransform() {
         scale = minScale;
-        translateX = 0;
-        translateY = 0;
+        posX = 0;
+        posY = 0;
         applyTransform();
       }
 
-      function startPan(pointer) {
-        panStartX = pointer.clientX;
-        panStartY = pointer.clientY;
-        panOriginX = translateX;
-        panOriginY = translateY;
-      }
-
-      function startPinch(p1, p2) {
-        hadMultiTouch = true;
-        pinchStartDistance = getDistance(p1, p2);
+      function startPinch(touches) {
+        isPinching = true;
+        isPanning = false;
+        pinchStartDistance = touchDistance(touches);
         pinchStartScale = scale;
+        var center = touchCenter(touches);
+        pinchStartX = center.x;
+        pinchStartY = center.y;
+        panOriginX = posX;
+        panOriginY = posY;
       }
 
-      function updatePinch(p1, p2) {
-        if (pinchStartDistance <= 0) {
+      function updatePinch(touches) {
+        if (!pinchStartDistance) {
+          startPinch(touches);
           return;
         }
-        var distance = getDistance(p1, p2);
-        scale = clamp(pinchStartScale * (distance / pinchStartDistance), minScale, maxScale);
+
+        var distance = touchDistance(touches);
+        var nextScale = clamp(pinchStartScale * (distance / pinchStartDistance), minScale, maxScale);
+        var center = touchCenter(touches);
+        var scaleRatio = nextScale / pinchStartScale;
+
+        posX = panOriginX + (center.x - pinchStartX);
+        posY = panOriginY + (center.y - pinchStartY);
+
+        if (nextScale > minScale) {
+          var viewport = document.getElementById('bild-viewport');
+          var viewRect = viewport.getBoundingClientRect();
+          var focusX = pinchStartX - viewRect.left - viewRect.width / 2;
+          var focusY = pinchStartY - viewRect.top - viewRect.height / 2;
+          posX -= focusX * (scaleRatio - 1);
+          posY -= focusY * (scaleRatio - 1);
+        }
+
+        scale = nextScale;
         applyTransform();
       }
 
-      function onPointerDown(event) {
-        viewport.setPointerCapture(event.pointerId);
-        pointers.set(event.pointerId, event);
-
-        if (pointers.size === 2 && !supportsGestures) {
-          var pts = Array.from(pointers.values());
-          startPinch(pts[0], pts[1]);
-        } else if (pointers.size === 1 && scale > minScale) {
-          startPan(event);
-        }
+      function startPan(touch) {
+        isPanning = true;
+        panStartX = touch.clientX;
+        panStartY = touch.clientY;
+        panOriginX = posX;
+        panOriginY = posY;
       }
 
-      function onPointerMove(event) {
-        if (!pointers.has(event.pointerId)) {
-          return;
-        }
-
-        pointers.set(event.pointerId, event);
-
-        if (pointers.size === 2 && !supportsGestures) {
-          event.preventDefault();
-          var pts = Array.from(pointers.values());
-          updatePinch(pts[0], pts[1]);
-        } else if (pointers.size === 1 && scale > minScale) {
-          event.preventDefault();
-          translateX = panOriginX + (event.clientX - panStartX);
-          translateY = panOriginY + (event.clientY - panStartY);
-          applyTransform();
-        }
-      }
-
-      function onPointerEnd(event) {
-        if (pointers.has(event.pointerId)) {
-          pointers.delete(event.pointerId);
-        }
-
-        try {
-          viewport.releasePointerCapture(event.pointerId);
-        } catch (e) {
-          // capture war nicht aktiv
-        }
-
-        if (pointers.size === 1) {
-          pinchStartDistance = 0;
-          if (scale > minScale) {
-            startPan(Array.from(pointers.values())[0]);
-          }
-        }
-
-        if (pointers.size === 0) {
-          pinchStartDistance = 0;
-
-          if (!hadMultiTouch && event.pointerType === 'touch') {
-            var now = Date.now();
-            var tapDistance = Math.hypot(event.clientX - lastTapX, event.clientY - lastTapY);
-            if (now - lastTapTime < 300 && tapDistance < 40) {
-              resetTransform();
-              lastTapTime = 0;
-            } else {
-              lastTapTime = now;
-              lastTapX = event.clientX;
-              lastTapY = event.clientY;
-            }
-          }
-
-          hadMultiTouch = false;
-
-          if (scale <= minScale) {
-            resetTransform();
-          } else {
-            applyTransform();
-          }
-        }
-      }
-
-      // iOS Safari: Pinch-Zoom über Gesture-Events (zuverlässiger als Touch-Events)
-      viewport.addEventListener('gesturestart', function (event) {
-        event.preventDefault();
-        gestureActive = true;
-        hadMultiTouch = true;
-        gestureStartScale = scale;
-      }, { passive: false });
-
-      viewport.addEventListener('gesturechange', function (event) {
-        event.preventDefault();
-        scale = clamp(gestureStartScale * event.scale, minScale, maxScale);
+      function updatePan(touch) {
+        posX = panOriginX + (touch.clientX - panStartX);
+        posY = panOriginY + (touch.clientY - panStartY);
         applyTransform();
-      }, { passive: false });
+      }
 
-      viewport.addEventListener('gestureend', function (event) {
-        event.preventDefault();
-        gestureActive = false;
-        if (scale <= minScale) {
-          resetTransform();
-        } else {
-          applyTransform();
-        }
-      }, { passive: false });
-
-      viewport.addEventListener('pointerdown', onPointerDown);
-      viewport.addEventListener('pointermove', onPointerMove, { passive: false });
-      viewport.addEventListener('pointerup', onPointerEnd);
-      viewport.addEventListener('pointercancel', onPointerEnd);
-
-      // Fallback für Browser ohne Pointer Events
-      viewport.addEventListener('touchstart', function (event) {
-        if (gestureActive) {
+      function onTouchStart(event) {
+        if (event.touches.length === 2) {
+          event.preventDefault();
+          startPinch(event.touches);
           return;
         }
-        if (event.touches.length === 2 && !supportsGestures) {
-          hadMultiTouch = true;
-          startPinch(event.touches[0], event.touches[1]);
-          event.preventDefault();
-        } else if (event.touches.length === 1 && scale > minScale) {
+
+        if (event.touches.length === 1 && scale > minScale) {
           startPan(event.touches[0]);
         }
-      }, { passive: false });
+      }
 
-      viewport.addEventListener('touchmove', function (event) {
-        if (gestureActive) {
+      function onTouchMove(event) {
+        if (event.touches.length === 2) {
+          event.preventDefault();
+          updatePinch(event.touches);
           return;
         }
-        if (event.touches.length === 2 && !supportsGestures) {
-          event.preventDefault();
-          updatePinch(event.touches[0], event.touches[1]);
-        } else if (event.touches.length === 1 && scale > minScale) {
-          event.preventDefault();
-          translateX = panOriginX + (event.touches[0].clientX - panStartX);
-          translateY = panOriginY + (event.touches[0].clientY - panStartY);
-          applyTransform();
-        }
-      }, { passive: false });
 
-      viewport.addEventListener('touchend', function (event) {
+        if (event.touches.length === 1 && isPanning && scale > minScale) {
+          event.preventDefault();
+          updatePan(event.touches[0]);
+        }
+      }
+
+      function onTouchEnd(event) {
+        if (event.touches.length < 2) {
+          isPinching = false;
+          pinchStartDistance = 0;
+        }
+
+        if (event.touches.length === 1 && scale > minScale) {
+          startPan(event.touches[0]);
+          return;
+        }
+
         if (event.touches.length === 0) {
+          isPanning = false;
+          isPinching = false;
           pinchStartDistance = 0;
-          if (!hadMultiTouch && event.changedTouches.length === 1) {
-            var touch = event.changedTouches[0];
-            var now = Date.now();
-            var tapDistance = Math.hypot(touch.clientX - lastTapX, touch.clientY - lastTapY);
-            if (now - lastTapTime < 300 && tapDistance < 40) {
-              resetTransform();
-              lastTapTime = 0;
-            } else {
-              lastTapTime = now;
-              lastTapX = touch.clientX;
-              lastTapY = touch.clientY;
-            }
-          }
-          hadMultiTouch = false;
-        } else if (event.touches.length === 1) {
-          pinchStartDistance = 0;
-          if (scale > minScale) {
-            startPan(event.touches[0]);
+          if (scale <= minScale) {
+            resetTransform();
           }
         }
-      });
+      }
+
+      document.addEventListener('touchstart', onTouchStart, { passive: false, capture: true });
+      document.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
+      document.addEventListener('touchend', onTouchEnd, { passive: false, capture: true });
+      document.addEventListener('touchcancel', onTouchEnd, { passive: false, capture: true });
 
       function vollbildAnpassen() {
         document.documentElement.style.height = window.innerHeight + 'px';
