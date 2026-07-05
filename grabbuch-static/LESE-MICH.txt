@@ -18,6 +18,13 @@ Oder manuell den Ordner "grabbuch" aus dem Projekt nach
 Aufruf im Browser:
   http://<synology-ip>/grabbuch/
   http://<synology-ip>/grabbuch/Suche.html
-  http://<synology-ip>/grabbuch/Suche.html?boden=1-boden.jpg
+  http://<synology-ip>/grabbuch/Suche.html?boden=1-boden.jpg&spalte=5&reihe=12
+
+Nach Tippen auf einen Namen erscheint unten die Position als:
+  5 | 12
+(ohne Doppelpunkt, nur mit Pipe-Zeichen)
+
+Suchdaten in suche-daten.json ablegen, z. B.:
+  [{"name":"Max Mustermann","spalte":5,"reihe":12,"boden":"1-boden.jpg"}]
 
 Grundriss-Bilder in grabbuch-static/bilder/ ablegen (werden mit deployed).
