@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#000000">
+  <base href="./">
+  <title>Grabsuche</title>
+  <link rel="stylesheet" href="suche.css">
+</head>
+<body>
+  <div id="suche-view">
+    <h1>Grabsuche</h1>
+    <input id="suchfeld" type="search" placeholder="Name eingeben …" autocomplete="off" autocorrect="off" spellcheck="false">
+    <ul id="trefferliste"></ul>
+    <p id="keine-treffer" class="hidden">Keine Treffer</p>
+  </div>
+
+  <div id="bild-view" class="hidden">
+    <button id="zurueck" type="button">Zurück</button>
+    <div id="viewport">
+      <img id="plan-bild" alt="Grundriss">
+    </div>
+    <div id="position-info" class="hidden"></div>
+  </div>
+
+  <script src="panzoom.min.js"></script>
+  <script src="suche.js"></script>
+</body>
+</html>

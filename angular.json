@@ -24,7 +24,6 @@
             "tsConfig": "tsconfig.app.json",
             "assets": [
               "src/favicon-16x16.png",
-              "src/Suche.html",
               "src/assets",
               {
                 "glob": "**/*",
@@ -148,7 +147,6 @@
             "karmaConfig": "karma.conf.js",
             "assets": [
               "src/favicon-16x16.png",
-              "src/Suche.html",
               "src/assets",
               {
                 "glob": "**/*",

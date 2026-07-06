@@ -1,30 +1,59 @@
-Grabbuch – Synology-Ablage (//synology/grabbuch/)
-=================================================
+Grabbuch – Synology-Ablage (\\synology\grabbuch\)
+==================================================
 
-Dieser Ordner wird beim Build nach "grabbuch/" kopiert.
-Den kompletten Inhalt von "grabbuch/" auf die Synology legen:
+Verzeichnisstruktur nach dem Build:
 
-  Ziel: \\synology\grabbuch\
+  grabbuch/
+  ├── index.html              Grabbuch-Karte (Angular)
+  ├── Suche.html              Weiterleitung → suche/
+  ├── bilder/                 Grundriss-Bilder
+  │   └── 1-boden.jpg         (Beispiel – hier ablegen)
+  ├── suche/                  Grabsuche
+  │   ├── index.html
+  │   ├── suche.js
+  │   ├── suche.css
+  │   ├── panzoom.min.js
+  │   └── suche-daten.json    Namensliste
+  ├── assets/                 Grabstätten-Bilder (Angular)
+  └── LESE-MICH.txt
 
-Bauen:
+Quellordner im Projekt (vor dem Build):
+
+  grabbuch-static/
+  ├── bilder/                 → wird nach grabbuch/bilder/
+  └── suche/                  → wird nach grabbuch/suche/
+
+Bauen und deployen
+------------------
+
   npm run build:grabbuch
-
-Auf Synology kopieren (Windows):
   npm run sync:grabbuch
 
-Oder manuell den Ordner "grabbuch" aus dem Projekt nach
-\\synology\grabbuch\ kopieren.
+Oder den Ordner grabbuch/ manuell nach \\synology\grabbuch\ kopieren.
 
-Aufruf im Browser:
-  http://<synology-ip>/grabbuch/
-  http://<synology-ip>/grabbuch/Suche.html
-  http://<synology-ip>/grabbuch/Suche.html?boden=1-boden.jpg&spalte=5&reihe=12
+Aufruf auf dem iPhone (im selben WLAN)
+---------------------------------------
 
-Nach Tippen auf einen Namen erscheint unten die Position als:
-  5 | 12
-(ohne Doppelpunkt, nur mit Pipe-Zeichen)
+  Grabbuch:   http://<synology-ip>/grabbuch/
+  Grabsuche:  http://<synology-ip>/grabbuch/suche/
+  Alt-Link:   http://<synology-ip>/grabbuch/Suche.html  (leitet weiter)
 
-Suchdaten in suche-daten.json ablegen, z. B.:
-  [{"name":"Max Mustermann","spalte":5,"reihe":12,"boden":"1-boden.jpg"}]
+Direkt ein Bild mit Position:
 
-Grundriss-Bilder in grabbuch-static/bilder/ ablegen (werden mit deployed).
+  http://<synology-ip>/grabbuch/suche/?boden=1-boden.jpg&spalte=5&reihe=12
+
+Position wird unten angezeigt als:  5 | 12
+
+Suchdaten (grabbuch-static/suche/suche-daten.json)
+----------------------------------------------------
+
+  [
+    {
+      "name": "Max Mustermann",
+      "spalte": 5,
+      "reihe": 12,
+      "boden": "1-boden.jpg"
+    }
+  ]
+
+Grundriss-Bilder in grabbuch-static/bilder/ ablegen.

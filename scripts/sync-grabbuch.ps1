@@ -21,4 +21,4 @@ if ($LASTEXITCODE -ge 8) { exit $LASTEXITCODE }
 Write-Host ""
 Write-Host "Deploy abgeschlossen: $Target"
 Write-Host "  Grabbuch:  http://synology/grabbuch/"
-Write-Host "  Suche:     http://synology/grabbuch/Suche.html"
+Write-Host "  Suche:     http://synology/grabbuch/suche/"
