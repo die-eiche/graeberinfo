@@ -34,6 +34,7 @@ Aufruf auf dem iPhone
 
   Grabbuch:   http://<synology-ip>/grabbuch/
   Grabsuche:  http://<synology-ip>/grabbuch/suche/
+  QR-Codes:   http://<synology-ip>/grabbuch/qr/
 
 Suchdaten: synology-static/web/grabbuch/suche/suche-daten.json
 Bilder:    synology-static/public/bilder/

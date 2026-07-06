@@ -98,6 +98,11 @@
                   "glob": "Suche.html",
                   "input": "synology-static/web/grabbuch",
                   "output": "/"
+                },
+                {
+                  "glob": "**/*",
+                  "input": "synology-static/web/grabbuch/qr",
+                  "output": "/qr"
                 }
               ],
               "budgets": [
