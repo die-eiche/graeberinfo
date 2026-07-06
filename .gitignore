@@ -3,6 +3,7 @@
 # Compiled output
 /dist
 /grabbuch
+/synology
 /tmp
 /out-tsc
 /bazel-out

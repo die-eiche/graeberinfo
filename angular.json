@@ -24,12 +24,7 @@
             "tsConfig": "tsconfig.app.json",
             "assets": [
               "src/favicon-16x16.png",
-              "src/assets",
-              {
-                "glob": "**/*",
-                "input": "grabbuch-static",
-                "output": "/"
-              }
+              "src/assets"
             ],
             "styles": [
               "src/styles.scss"
@@ -90,7 +85,21 @@
             "synology": {
               "baseHref": "/grabbuch/",
               "deployUrl": "/grabbuch/",
-              "outputPath": "grabbuch",
+              "outputPath": "synology/web/grabbuch",
+              "assets": [
+                "src/favicon-16x16.png",
+                "src/assets",
+                {
+                  "glob": "**/*",
+                  "input": "synology-static/web/grabbuch/suche",
+                  "output": "/suche"
+                },
+                {
+                  "glob": "Suche.html",
+                  "input": "synology-static/web/grabbuch",
+                  "output": "/"
+                }
+              ],
               "budgets": [
                 {
                   "type": "initial",
@@ -147,12 +156,7 @@
             "karmaConfig": "karma.conf.js",
             "assets": [
               "src/favicon-16x16.png",
-              "src/assets",
-              {
-                "glob": "**/*",
-                "input": "grabbuch-static",
-                "output": "/"
-              }
+              "src/assets"
             ],
             "styles": [
               "src/styles.scss"

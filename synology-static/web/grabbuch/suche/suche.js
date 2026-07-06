@@ -1,5 +1,5 @@
 (function () {
-  var BILDER_PFAD = '../bilder/';
+  var BILDER_PFAD = '/public/bilder/';
   var DATEN_DATEI = 'suche-daten.json';
 
   var params = new URLSearchParams(window.location.search);

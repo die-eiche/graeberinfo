@@ -1,0 +1,39 @@
+Synology-Deploy: web und public
+==============================
+
+Ziel auf der Synology
+---------------------
+
+  \\synology\web\grabbuch\     →  http://<synology-ip>/grabbuch/
+  \\synology\public\bilder\    →  http://<synology-ip>/public/bilder/
+
+Der Ordner "web" ist die Web-Station-Wurzel (nicht in der URL sichtbar).
+Der Ordner "public" liefert öffentliche Dateien unter /public/.
+
+Quellordner im Projekt
+----------------------
+
+  synology-static/web/grabbuch/suche/   Grabsuche (HTML, JS, CSS, Daten)
+  synology-static/web/grabbuch/Suche.html
+  synology-static/public/bilder/        Grundriss-Bilder
+
+Build-Ausgabe
+-------------
+
+  synology/web/grabbuch/    Angular-App + Grabsuche
+  synology/public/bilder/   Grundriss-Bilder
+
+Befehle
+-------
+
+  npm run build:grabbuch      Bauen
+  npm run sync:synology       Nach \\synology\web und \\synology\public kopieren
+
+Aufruf auf dem iPhone
+---------------------
+
+  Grabbuch:   http://<synology-ip>/grabbuch/
+  Grabsuche:  http://<synology-ip>/grabbuch/suche/
+
+Suchdaten: synology-static/web/grabbuch/suche/suche-daten.json
+Bilder:    synology-static/public/bilder/
