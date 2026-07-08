@@ -1,0 +1,15 @@
+services:
+  ehrenamt-dienstplan:
+    build: .
+    container_name: ehrenamt-dienstplan
+    restart: unless-stopped
+    ports:
+      - "3080:3080"
+    environment:
+      PORT: 3080
+      DAY_COUNT: 10
+      CACHE_MS: 300000
+      DROPBOX_TOKEN_FILE: /data/Dropbox-Access-Token.txt
+      DROPBOX_FILE_PATH: /eiche/ehrenamt/EA Dienste 2026.xlsx
+    volumes:
+      - /volume1/Ehrenamt/Dropbox-Access-Token.txt:/data/Dropbox-Access-Token.txt:ro
