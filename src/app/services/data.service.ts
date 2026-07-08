@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { of } from 'rxjs/internal/observable/of';
 import { map, tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
+import { DropboxExcelService } from './dropbox-excel.service';
 import { DataModel } from './datamodel';
 
 const emptyRecord: DataModel = {
@@ -34,11 +35,17 @@ export class DataService {
 
   constructor(
     private httpClient: HttpClient,
+    private dropboxExcelService: DropboxExcelService,
     private logger: NGXLogger) {
   }
 
   public readData$(): Observable<DataModel[]> {
     this.logger.trace('starting DataService.readData$().');
+
+    if (environment.useDropboxAsDataSource) {
+      return this.readFromDropbox$();
+    }
+
     const authCodeQuery = environment.authCode
       ? `code=${environment.authCode}&`
       : '';
@@ -69,5 +76,25 @@ export class DataService {
         }),
         tap((records: DataModel[]) => this.cachedRecords = records)
       );
+  }
+
+  private readFromDropbox$(): Observable<DataModel[]> {
+    if (this.cachedRecords.length) {
+      return of(this.cachedRecords);
+    }
+
+    return this.dropboxExcelService.loadExcelData$().pipe(
+      map(response => (response.mappedRows || []) as unknown as DataModel[]),
+      map((records: DataModel[]) => {
+        if (records.length > 0) {
+          this.logger.debug(`found ${records.length} records from Dropbox Excel`);
+          return records;
+        }
+
+        this.logger.warn('no records found in Dropbox Excel data source.');
+        return [emptyRecord];
+      }),
+      tap((records: DataModel[]) => this.cachedRecords = records)
+    );
   }
 }

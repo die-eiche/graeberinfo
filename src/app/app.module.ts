@@ -9,9 +9,11 @@ import { environment } from '../environments/environment';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
+import { ExcelTableComponent } from './components/excel-table/excel-table.component';
 import { InfopanelComponent } from './components/infopanel/infopanel.component';
 import { SlicedContentComponent } from './components/sliced-content/sliced-content.component';
 import { DataService } from './services/data.service';
+import { DropboxExcelService } from './services/dropbox-excel.service';
 
 registerLocaleData(localeDe, 'de-DE', localeDeExtra);
 
@@ -23,7 +25,8 @@ const loggerConfig: INGXLoggerConfig = environment.production
   declarations: [
     AppComponent,
     SlicedContentComponent,
-    InfopanelComponent
+    InfopanelComponent,
+    ExcelTableComponent
   ],
   imports: [
     BrowserModule,
@@ -33,6 +36,7 @@ const loggerConfig: INGXLoggerConfig = environment.production
   ],
   providers: [
     DataService,
+    DropboxExcelService,
     {provide: LOCALE_ID, useValue: 'de-DE'},
     {provide: DEFAULT_CURRENCY_CODE, useValue: 'EUR'},
     {provide: APP_BASE_HREF, useValue: '/'}
