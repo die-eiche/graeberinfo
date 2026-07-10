@@ -5,10 +5,7 @@
 export const environment = {
   production: false,
   dataServerBaseAddress: 'http://localhost:7071',
-  authCode: null,
-  dropboxExcelApiUrl: '/api/dropbox-excel',
-  useDemoData: true,
-  useDropboxAsDataSource: false
+  authCode: null
 };
 
 /*

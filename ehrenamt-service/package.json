@@ -2,7 +2,7 @@
   "name": "ehrenamt-dienstplan",
   "version": "1.0.0",
   "private": true,
-  "description": "Liest den Ehrenamt-Dienstplan aus Dropbox und zeigt die nächsten 10 Tage an",
+  "description": "Liest den Ehrenamt-Dienstplan von der lokal synchronisierten Excel-Datei auf dem NAS",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

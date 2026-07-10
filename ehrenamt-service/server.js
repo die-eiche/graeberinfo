@@ -1,6 +1,6 @@
 const express = require('express');
 const path = require('path');
-const { downloadExcelFile } = require('./lib/dropbox');
+const { getExcelFilePath, readExcelFile } = require('./lib/excel-file');
 const { parseDutySchedule } = require('./lib/dienstplan');
 
 const app = express();
@@ -14,15 +14,22 @@ const cacheMs = Number(process.env.CACHE_MS || 5 * 60 * 1000);
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true });
+  res.json({
+    ok: true,
+    excelFile: getExcelFilePath()
+  });
 });
 
-app.get('/api/dienste', async (_req, res) => {
+app.get('/api/dienste', (_req, res) => {
   try {
     const now = Date.now();
     if (!cachedResult || now - cachedAt > cacheMs) {
-      const buffer = await downloadExcelFile();
-      cachedResult = parseDutySchedule(buffer, dayCount);
+      const buffer = readExcelFile();
+      cachedResult = {
+        ...parseDutySchedule(buffer, dayCount),
+        source: 'local',
+        excelFile: getExcelFilePath()
+      };
       cachedAt = now;
     }
 
@@ -36,4 +43,5 @@ app.get('/api/dienste', async (_req, res) => {
 
 app.listen(port, () => {
   console.log(`Ehrenamt-Dienstplan läuft auf Port ${port}`);
+  console.log(`Excel-Datei: ${getExcelFilePath()}`);
 });
