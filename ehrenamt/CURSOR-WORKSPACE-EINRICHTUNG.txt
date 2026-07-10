@@ -1,0 +1,51 @@
+CURSOR-WORKSPACE EINRICHTUNG (damit der Agent NAS-Dateien direkt nutzen kann)
+================================================================================
+
+WICHTIG
+-------
+Der Cloud-Agent (dieser Remote-Chat) laeuft in einer Linux-Cloud und kann G:\ nicht sehen.
+Damit der Agent direkt auf Ehrenamt-Dateien zugreift, muss der WORKSPACE auf dem NAS liegen.
+
+EMPFOHLENE LOESUNG: Workspace = G:\Ehrenamt
+-------------------------------------------
+
+1. NAS verbinden (G: = Freigabe public)
+
+2. Einmalig Ordner anlegen:
+   G:\Ehrenamt\Abfrage\
+   G:\Ehrenamt\werhatdienst\
+
+3. Dateien aus dem Repo kopieren:
+   Von: C:\Users\MA\graeberinfo\ehrenamt\
+   Nach:  G:\Ehrenamt\
+
+   PowerShell:
+   cd C:\Users\MA\graeberinfo\ehrenamt
+   powershell -ExecutionPolicy Bypass -File .\deploy-zum-nas.ps1
+
+4. Cursor Desktop:
+   Datei -> Ordner oeffnen -> G:\Ehrenamt
+   (NICHT C:\Users\MA\graeberinfo)
+
+5. Neuer Agent-Chat in diesem Fenster:
+   "Bitte Container in Abfrage starten und werhatdienst testen."
+
+Dann arbeitet der Agent direkt auf dem NAS.
+
+
+ALTERNATIVE: Remote-SSH auf Synology
+------------------------------------
+
+1. DSM -> Terminal & SNMP -> SSH aktivieren
+2. Cursor -> Extension "Remote - SSH"
+3. Verbinden: ssh DEIN_USER@100.80.9.127
+4. Ordner oeffnen: /volume1/Ehrenamt
+   (Excel liegt in /volume1/public/ehrenamt/)
+
+
+DATEIPFADE
+----------
+Excel:  G:\ehrenamt\EA Dienste 2026.xlsx
+Logo:   G:\ehrenamt\logo.png
+Backend: G:\Ehrenamt\Abfrage\
+App:    G:\Ehrenamt\werhatdienst\
