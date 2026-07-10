@@ -4,7 +4,8 @@
 $ErrorActionPreference = "Stop"
 
 $sourceRoot = $PSScriptRoot
-$targetRoot = "G:\public\Ehrenamt"
+# G: ist bei Synology meist die Freigabe "public" selbst, nicht G:\public\
+$targetRoot = "G:\Ehrenamt"
 
 if (-not (Test-Path $targetRoot)) {
     throw "Zielordner nicht gefunden: $targetRoot"
@@ -27,7 +28,7 @@ foreach ($folder in $folders) {
 
 Write-Host ""
 Write-Host "Fertig."
-Write-Host "1. Container Manager -> Projekt in G:\public\Ehrenamt\Abfrage erstellen"
+Write-Host "1. Container Manager -> Projekt in G:\Ehrenamt\Abfrage erstellen"
 Write-Host "2. Web Station: Ordner werhatdienst freigeben oder statisch bereitstellen"
-Write-Host "3. App oeffnen: http://<NAS-IP>/ehrenamt/werhatdienst/ oder ueber Web Station URL"
+Write-Host "3. App oeffnen: http://<NAS-IP>/Ehrenamt/werhatdienst/ oder ueber Web Station URL"
 Write-Host "4. iOS: Safari -> Teilen -> Zum Home-Bildschirm"
