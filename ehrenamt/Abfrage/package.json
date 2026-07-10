@@ -1,8 +1,8 @@
 {
-  "name": "ehrenamt-dienstplan",
+  "name": "ehrenamt-abfrage",
   "version": "1.0.0",
   "private": true,
-  "description": "Liest den Ehrenamt-Dienstplan von der lokal synchronisierten Excel-Datei auf dem NAS",
+  "description": "Backend: liest die synchronisierte Ehrenamt-Excel vom NAS",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

@@ -45,4 +45,4 @@ Thumbs.db
 .netlify
 
 # Ehrenamt service dependencies
-ehrenamt-service/node_modules/
+ehrenamt/Abfrage/node_modules/

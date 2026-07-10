@@ -1,7 +1,7 @@
 services:
-  ehrenamt-dienstplan:
+  ehrenamt-abfrage:
     build: .
-    container_name: ehrenamt-dienstplan
+    container_name: ehrenamt-abfrage
     restart: unless-stopped
     ports:
       - "3080:3080"

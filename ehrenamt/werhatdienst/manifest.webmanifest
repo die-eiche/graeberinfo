@@ -1,0 +1,17 @@
+{
+  "name": "Wer hat Dienst",
+  "short_name": "Dienst",
+  "description": "Ehrenamt Dienstplan der nächsten 10 Tage",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f6f8",
+  "theme_color": "#2f5d3a",
+  "icons": [
+    {
+      "src": "../logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
