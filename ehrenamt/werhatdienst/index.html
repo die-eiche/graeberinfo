@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Wer hat Dienst">
+  <meta name="theme-color" content="#2f5d3a">
+  <title>Wer hat Dienst</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/ehrenamt/logo.png">
+  <link rel="icon" href="/ehrenamt/logo.png" type="image/png">
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
+</head>
+<body>
+  <main>
+    <header>
+      <img class="logo" src="/ehrenamt/logo.png" alt="Ehrenamt Logo">
+      <div class="header-text">
+        <h1>Wer hat Dienst?</h1>
+        <p id="subtitle">Nächste 10 Tage ab heute</p>
+      </div>
+    </header>
+
+    <div class="toolbar">
+      <button id="refresh" type="button">Aktualisieren</button>
+    </div>
+
+    <div id="content"></div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

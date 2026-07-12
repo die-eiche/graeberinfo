@@ -1,0 +1,14 @@
+{
+  "name": "ehrenamt-abfrage",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend: liest die synchronisierte Ehrenamt-Excel vom NAS",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "xlsx": "^0.18.5"
+  }
+}

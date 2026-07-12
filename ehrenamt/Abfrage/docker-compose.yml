@@ -1,0 +1,15 @@
+services:
+  ehrenamt-abfrage:
+    build: .
+    container_name: ehrenamt-abfrage
+    restart: unless-stopped
+    ports:
+      - "3080:3080"
+    environment:
+      PORT: 3080
+      DAY_COUNT: 10
+      CACHE_MS: 300000
+      TZ: Europe/Berlin
+      EXCEL_FILE_PATH: /data/excel/EA Dienste 2026.xlsx
+    volumes:
+      - /volume1/public/ehrenamt:/data/excel:ro

@@ -43,3 +43,6 @@ Thumbs.db
 
 # Local Netlify folder
 .netlify
+
+# Ehrenamt service dependencies
+ehrenamt/Abfrage/node_modules/
