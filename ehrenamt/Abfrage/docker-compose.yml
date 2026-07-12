@@ -9,6 +9,7 @@ services:
       PORT: 3080
       DAY_COUNT: 10
       CACHE_MS: 300000
+      TZ: Europe/Berlin
       EXCEL_FILE_PATH: /data/excel/EA Dienste 2026.xlsx
     volumes:
       - /volume1/public/ehrenamt:/data/excel:ro

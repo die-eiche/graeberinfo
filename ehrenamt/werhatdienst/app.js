@@ -2,7 +2,23 @@ const content = document.getElementById('content');
 const refreshButton = document.getElementById('refresh');
 const apiBase = (window.WERHATDIENST_CONFIG && window.WERHATDIENST_CONFIG.apiBase) || '';
 
+function updateSubtitle(data) {
+  const subtitle = document.getElementById('subtitle');
+  if (!subtitle) {
+    return;
+  }
+
+  if (data.fromDate && data.toDate) {
+    subtitle.textContent = `Nächste ${data.dayCount || data.days.length} Tage: ${data.fromDate} bis ${data.toDate}`;
+    return;
+  }
+
+  subtitle.textContent = 'Nächste 10 Tage ab heute';
+}
+
 function renderDays(data) {
+  updateSubtitle(data);
+
   content.innerHTML = data.days.map(day => `
     <section class="day-card">
       <div class="day-title">${day.weekday}, ${day.date}</div>

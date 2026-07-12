@@ -1,6 +1,31 @@
 const XLSX = require('xlsx');
 
+const TIME_ZONE = process.env.TZ || 'Europe/Berlin';
 const WEEKDAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+
+function getLocalToday(timeZone = TIME_ZONE) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(new Date());
+
+  const year = Number(parts.find(part => part.type === 'year').value);
+  const month = Number(parts.find(part => part.type === 'month').value);
+  const day = Number(parts.find(part => part.type === 'day').value);
+
+  return new Date(year, month - 1, day);
+}
+
+function getLocalDayKey(date = new Date(), timeZone = TIME_ZONE) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(date);
+}
 
 function isFilled(value) {
   if (value === null || value === undefined) {
@@ -98,7 +123,7 @@ function sheetToMatrix(workbook, sheetName) {
   });
 }
 
-function getNextDays(count, startDate = new Date()) {
+function getNextDays(count, startDate = getLocalToday()) {
   const days = [];
   const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
 
@@ -177,7 +202,7 @@ function buildDayEntry(date, matrix) {
   };
 }
 
-function parseDutySchedule(buffer, dayCount = 10, startDate = new Date()) {
+function parseDutySchedule(buffer, dayCount = 10, startDate = getLocalToday()) {
   const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
   const sheetCache = {};
 
@@ -192,11 +217,16 @@ function parseDutySchedule(buffer, dayCount = 10, startDate = new Date()) {
 
   return {
     generatedAt: new Date().toISOString(),
+    timeZone: TIME_ZONE,
+    fromDate: days[0]?.date || formatGermanDate(startDate),
+    toDate: days[days.length - 1]?.date || formatGermanDate(startDate),
     dayCount,
     days
   };
 }
 
 module.exports = {
+  getLocalToday,
+  getLocalDayKey,
   parseDutySchedule
 };

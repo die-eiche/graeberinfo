@@ -1,6 +1,6 @@
 const express = require('express');
 const { getExcelFilePath, readExcelFile } = require('./lib/excel-file');
-const { parseDutySchedule } = require('./lib/dienstplan');
+const { getLocalDayKey, parseDutySchedule } = require('./lib/dienstplan');
 
 const app = express();
 const port = Number(process.env.PORT || 3080);
@@ -8,6 +8,7 @@ const dayCount = Number(process.env.DAY_COUNT || 10);
 
 let cachedResult = null;
 let cachedAt = 0;
+let cachedDayKey = '';
 const cacheMs = Number(process.env.CACHE_MS || 5 * 60 * 1000);
 
 app.use((_req, res, next) => {
@@ -26,7 +27,9 @@ app.get('/api/health', (_req, res) => {
 app.get('/api/dienste', (_req, res) => {
   try {
     const now = Date.now();
-    if (!cachedResult || now - cachedAt > cacheMs) {
+    const dayKey = getLocalDayKey();
+
+    if (!cachedResult || now - cachedAt > cacheMs || cachedDayKey !== dayKey) {
       const buffer = readExcelFile();
       cachedResult = {
         ...parseDutySchedule(buffer, dayCount),
@@ -34,6 +37,7 @@ app.get('/api/dienste', (_req, res) => {
         excelFile: getExcelFilePath()
       };
       cachedAt = now;
+      cachedDayKey = dayKey;
     }
 
     res.json(cachedResult);
