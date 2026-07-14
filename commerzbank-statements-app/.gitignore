@@ -1,0 +1,14 @@
+*.iml
+.gradle/
+local.properties
+/.idea/
+**/build/
+captures/
+*.apk
+*.aab
+*.dex
+*.class
+.DS_Store
+**/statements/
+**/sent_log.json
+**/*.passport
