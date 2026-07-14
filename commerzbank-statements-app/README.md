@@ -1,4 +1,4 @@
-# Kontoauszug senden (Android)
+# Kontoauszug senden
 
 Eigenständige Android-App für das Handy: holt monatliche **PDF-Kontoauszüge** der Commerzbank per FinTS und sendet neue Auszüge per **E-Mail (SMTP)** an eine Empfängeradresse.
 
@@ -6,7 +6,7 @@ Eigenständige Android-App für das Handy: holt monatliche **PDF-Kontoauszüge**
 
 Gedacht zum Installieren auf dem Handy der Mutter (oder deinem). Ein großer Knopf: **„Jetzt holen und senden“**.
 
-Nur **Android** (APK). iPhone ist nicht enthalten.
+Verfügbar für **Android** und **iOS**.
 
 ## Voraussetzungen bei der Commerzbank
 
@@ -53,11 +53,27 @@ Alternativ in Android Studio den Ordner `commerzbank-statements-app` öffnen und
 
 Bereits versendete Auszüge werden lokal gemerkt und nicht erneut geschickt.
 
+
+
+## iOS (iPhone)
+
+Benötigt einen Mac mit Xcode.
+
+```bash
+cd commerzbank-statements-app/ios
+brew install xcodegen   # falls noch nicht vorhanden
+./scripts/bootstrap.sh
+open KontoauszugSender.xcodeproj
+```
+
+In Xcode: Team für Code-Signing wählen, App auf dem iPhone starten (Developer Mode / persönliches Team genügt für die eigene Mama).
+
+FinTS kommt von HBCI4Swift (vendored), E-Mail über Swift-SMTP. Bedienung entspricht der Android-App.
+
 ## Technik
 
-- Kotlin + Jetpack Compose
-- FinTS über [hbci4j](https://github.com/hbci4j/hbci4java) (`KontoauszugPdf` / HKEKP)
-- Versand über SMTP (`android-mail`)
+- Android: Kotlin + Jetpack Compose, FinTS über [hbci4j](https://github.com/hbci4j/hbci4java)
+- iOS: SwiftUI, FinTS über [HBCI4Swift](https://github.com/macemmi/HBCI4Swift), SMTP über Swift-SMTP
 
 ## Sicherheit
 

@@ -1,0 +1,58 @@
+name: KontoauszugSender
+options:
+  bundleIdPrefix: de.familie
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+
+packages:
+  SwiftSMTP:
+    url: https://github.com/Kitura/Swift-SMTP
+    from: 6.0.0
+
+targets:
+  KontoauszugSender:
+    type: application
+    platform: iOS
+    sources:
+      - path: KontoauszugSender
+      - path: Vendor/HBCI4Swift/HBCI4Swift/HBCI4Swift
+        excludes:
+          - "**/Chipcard/**"
+          - "**/*Test*"
+          - "Info.plist"
+          - "**/Resources/**"
+        typeDirectoryHierarchy: true
+      - path: Vendor/HBCI4Swift/HBCI4Swift/HBCI4Swift/Resources
+        buildPhase: resources
+        typeDirectoryHierarchy: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.familie.kontoauszug
+        PRODUCT_NAME: KontoauszugSender
+        INFOPLIST_FILE: KontoauszugSender/Info.plist
+        GENERATE_INFOPLIST_FILE: false
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: "1.0.0"
+        DEVELOPMENT_TEAM: ""
+        CODE_SIGN_STYLE: Automatic
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_INCLUDE_PATHS: $(SRCROOT)/Vendor/HBCI4Swift/HBCI4Swift/CommonCrypto
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited)"
+    dependencies:
+      - package: SwiftSMTP
+    info:
+      path: KontoauszugSender/Info.plist
+      properties:
+        CFBundleDisplayName: Kontoauszug senden
+        UILaunchScreen: {}
+        UIRequiresFullScreen: true
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: false
