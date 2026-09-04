@@ -1,74 +1,127 @@
-# Aufnahme Eiche – Anleitung (nur Handy)
+# Aufnahme Eiche – Echte App bauen und installieren
 
-Diese App läuft **vollständig auf dem Handy**.  
-Sie brauchen **keinen Computer und kein NAS** für den Alltag.
+Wir nutzen **kein Expo Go**.  
+Stattdessen wird eine **richtige App** gebaut, die Sie auf dem Handy installieren.
 
----
-
-## Was die App macht
-
-1. Vor dem Kundengespräch App öffnen.
-2. Oben sehen Sie die Uhr.
-3. **Start** beginnt die Aufnahme.
-4. **Pause** unterbricht, **Weiter** macht weiter.
-5. **Stop** beendet das Gespräch.
-6. Erkannte Angaben (Name, Adresse, Grabnummer …) erscheinen auf dem Bildschirm.
-7. Nach Stop können Sie die Tabelle in die **Notizen-App** speichern.
-
-Bei einem Anruf pausiert die App von selbst und macht danach weiter.
+Wenn sich der Programmcode ändert, können Sie die alte App löschen und eine **neue Version** bauen und installieren.
 
 ---
 
-## Einmalig vorbereiten
+## Was Sie brauchen
 
-### 1. Mistral-Schlüssel besorgen
+1. Ein **Expo-Konto** (kostenlos): https://expo.dev/signup  
+2. Einen Computer mit Internet  
+3. Den **Mistral-API-Schlüssel** (später in der App unter Einst.)  
+4. Für **Android**: fast jedes Android-Handy  
+5. Für **iPhone**: zusätzlich ein **Apple-Entwicklerkonto** (kostenpflichtig) und oft Hilfe von der IT
 
-1. Jemand aus dem Team legt ein Mistral-Konto an: https://console.mistral.ai  
-2. Dort einen **API-Schlüssel** erzeugen.  
-3. Diesen Schlüssel sicher aufbewahren (wie ein Passwort).  
-4. **Denselben Schlüssel** bekommen alle Mitarbeiter-Handys.
-
-### 2. App auf dem Handy öffnen
-
-Solange die App noch in der Testphase ist:
-
-1. Im App Store / Google Play die App **Expo Go** installieren.
-2. Eine IT-Person startet die App einmal zum Testen und zeigt Ihnen den QR-Code  
-   **oder** installiert Ihnen später die fertige App direkt.
-
-> Später soll die App wie jede normale Handy-App installiert werden.  
-> Bis dahin reicht Expo Go für Tests.
-
-### 3. Schlüssel in der App speichern
-
-1. App öffnen.
-2. Oben rechts auf **Einst.** tippen.
-3. Den Mistral-Schlüssel einfügen.
-4. **Speichern** tippen.
-5. **Schließen**.
-
-Das muss pro Handy **einmal** gemacht werden.
+**Tipp zum Start:** Zuerst **Android** bauen. Das ist einfacher.
 
 ---
 
-## So nutzen Sie die App im Gespräch
+## Teil 1: Einmalig einrichten (Computer)
+
+### Schritt 1 – Ordner öffnen
+
+Im Terminal:
+
+```bash
+cd aufnahme-app
+npm install
+```
+
+### Schritt 2 – Bei Expo anmelden
+
+```bash
+npx eas login
+```
+
+E-Mail und Passwort vom Expo-Konto eingeben.
+
+### Schritt 3 – Projekt bei Expo anlegen
+
+```bash
+npx eas init
+```
+
+Den Fragen zustimmen (Projekt verknüpfen / neu anlegen).
+
+---
+
+## Teil 2: App bauen
+
+### Android-App (APK) erzeugen
+
+```bash
+npm run build:android
+```
+
+Oder:
+
+```bash
+npx eas build --platform android --profile preview
+```
+
+- Der Build läuft in der Cloud (dauert oft 10–20 Minuten).  
+- Am Ende bekommen Sie einen **Download-Link** für eine Datei `…apk`.
+
+### iPhone-App erzeugen (nur mit Apple-Konto)
+
+```bash
+npm run build:ios
+```
+
+Hier fragt Expo nach Apple-Zugangsdaten. Das richtet die IT ein.
+
+---
+
+## Teil 3: App auf dem Handy installieren
+
+### Android
+
+1. Die `.apk`-Datei aufs Handy laden (Link im Browser öffnen oder per USB/Mail).  
+2. Installation erlauben (bei Warnung „unbekannte Quelle“ einmal zustimmen).  
+3. App **Aufnahme Eiche** installieren.  
+4. App öffnen.  
+5. Oben rechts **Einst.** → Mistral-Schlüssel eintragen → Speichern.  
+6. **Start** drücken.
+
+### iPhone
+
+1. Über den Expo-/Apple-Installationsweg installieren (IT).  
+2. Unter Einstellungen ggf. Entwickler/Profil vertrauen.  
+3. App öffnen → Schlüssel eintragen → Start.
+
+---
+
+## Wenn der Code geändert wurde
+
+Genau so, wie Sie es wollen:
+
+1. Alte App auf dem Handy **löschen** (optional, aber klar und sauber).  
+2. Am Computer erneut bauen:
+
+```bash
+cd aufnahme-app
+npm run build:android
+```
+
+3. Neue `.apk` herunterladen und **neu installieren**.  
+4. Schlüssel unter **Einst.** ggf. erneut eintragen.
+
+---
+
+## Bedienung im Gespräch
 
 | Knopf | Bedeutung |
 |---|---|
 | **Start** | Aufnahme beginnt |
 | **Pause** | Kurz unterbrechen |
-| **Weiter** | Nach Pause fortsetzen |
+| **Weiter** | Fortsetzen |
 | **Stop** | Gespräch beenden |
 
-Während der Aufnahme:
-- Neue erkannte Daten erscheinen auf dem Bildschirm.
-- Ältere Einträge rutschen nach oben.
-- Der Titel wird z. B. zu `Müller, Anna`, sobald der Name klar ist.
-
-Nach **Stop**:
-1. Es öffnet sich ein Teilen-Menü.
-2. Dort **Notizen** wählen.
-3. Fertig.
+- Erkannte Daten erscheinen auf dem Bildschirm.  
+- Nach Stop: Teilen → **Notizen** wählen.
 
 ---
 
@@ -76,35 +129,28 @@ Nach **Stop**:
 
 | Problem | Was tun |
 |---|---|
-| Meldung „Schlüssel fehlt“ | Unter **Einst.** den Mistral-Schlüssel speichern |
-| Kein Mikrofon | In den Handy-Einstellungen Mikrofon für die App erlauben |
-| Keine Daten erscheinen | Internet prüfen (WLAN oder Mobilfunk) |
-| Schlüssel ungültig | Neuen Schlüssel bei Mistral holen und erneut unter Einst. speichern |
+| `eas login` fehlgeschlagen | Expo-Konto prüfen, Passwort neu setzen |
+| Build bricht ab | Fehlermeldung an die IT / den Agenten schicken |
+| APK installiert nicht | In Android „Installation aus unbekannten Quellen“ erlauben |
+| „Schlüssel fehlt“ | In der App unter **Einst.** speichern |
+| Kein Mikrofon | In den Handy-Einstellungen Mikrofon für „Aufnahme Eiche“ erlauben |
 
 ---
 
-## Datenschutz in einfachen Worten
+## Datenschutz kurz
 
-- Alles läuft auf dem Handy + der europäischen KI von Mistral.
-- In die Notiz kommt **nur die ausgefüllte Tabelle**, nicht das ganze Gespräch.
-- Audio wird zur Auswertung an Mistral geschickt und **nicht** als Aufnahme in den Notizen gespeichert.
-- Der Schlüssel liegt auf dem Handy – Handys bitte mit Code/Face ID schützen.
+- App läuft auf dem Handy und nutzt Mistral (EU).  
+- In Notizen landet nur die Tabelle, nicht das ganze Gespräch.  
+- Handys mit Code/Face ID schützen, weil der API-Schlüssel auf dem Gerät liegt.
 
 ---
 
-## Für die IT (kurz)
+## Für die IT
 
-- App-Ordner: `aufnahme-app/`
-- Direktaufruf Mistral (Transkription + Extraktion), kein eigener Server nötig
-- Prompt: `docs/aufnahme/system-prompt.md` (auch in der App eingebettet)
-- Optionaler alter Server-Ordner `aufnahme-api/` wird für diese Variante **nicht** benötigt
+| Datei | Zweck |
+|---|---|
+| `eas.json` | Build-Profil `preview` → Android-APK zum direkten Installieren |
+| `app.json` | App-Name, Paket-ID `de.eiche.aufnahme` |
+| `npm run build:android` | Cloud-Build starten |
 
-Teststart:
-
-```bash
-cd aufnahme-app
-npm install
-npx expo start
-```
-
-Dann QR-Code mit Expo Go scannen.
+Kein Expo Go, kein eigener Server/NAS im Alltag.
