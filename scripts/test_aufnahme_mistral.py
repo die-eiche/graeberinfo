@@ -73,7 +73,11 @@ def call_mistral(api_key: str, model: str, system_prompt: str, user_content: str
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default="mistral-large-latest")
+    parser.add_argument(
+        "--model",
+        default="open-mistral-nemo",
+        help="Default open-mistral-nemo (breit verfügbar). Alternative: mistral-small-latest",
+    )
     args = parser.parse_args()
 
     api_key = os.environ.get("MISTRAL_API_KEY", "").strip()

@@ -77,8 +77,10 @@ Aus dem Beratungsgespräch extrahierst du ausschließlich formularrelevante Fakt
 Antworte IMMER genau so:
 
 1) Erste Zeile = Notiz-Titel:
-- Wenn Mieter-Nachname und Mieter-Vorname beide eindeutig bekannt:
+- Wenn Mieter-Nachname und Mieter-Vorname beide eindeutig bekannt, genau in dieser Reihenfolge und Schreibweise:
 Nachname, Vorname
+  Beispiel: Berger, Thomas
+  Niemals „Vorname Nachname“, niemals ohne Komma.
 - Sonst genau:
 Aufnahme
 
