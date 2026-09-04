@@ -2,6 +2,7 @@ import { Audio } from "expo-av";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Platform, type AppStateStatus } from "react-native";
 import { sendAudioSegment, startSession, stopSession } from "../services/api";
+import { hasApiKey } from "../services/apiKey";
 import { diffDiscoveries, type Discovery } from "../services/discoveries";
 import { shareNoteToSystemNotes, upsertNoteFile } from "../services/notes";
 import type { SessionStatus } from "../types/session";
@@ -19,6 +20,7 @@ export function useAufnahmeSession() {
   const [discoveries, setDiscoveries] = useState<Discovery[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [keyConfigured, setKeyConfigured] = useState(false);
 
   const sessionIdRef = useRef<string | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
@@ -30,6 +32,14 @@ export function useAufnahmeSession() {
   const titleRef = useRef("Aufnahme");
   const discoverySeqRef = useRef(0);
   const segmentTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const refreshKeyState = useCallback(async () => {
+    setKeyConfigured(await hasApiKey());
+  }, []);
+
+  useEffect(() => {
+    void refreshKeyState();
+  }, [refreshKeyState]);
 
   useEffect(() => {
     statusRef.current = status;
@@ -84,7 +94,11 @@ export function useAufnahmeSession() {
       processingRef.current = true;
       setBusy(true);
       try {
-        const result = await sendAudioSegment(sessionIdRef.current, uri);
+        const result = await sendAudioSegment(
+          sessionIdRef.current,
+          uri,
+          noteMarkdownRef.current
+        );
         if (!result.skipped) {
           await applyNoteUpdate(result.title, result.noteMarkdown);
         }
@@ -159,6 +173,10 @@ export function useAufnahmeSession() {
     setError(null);
 
     if (status === "idle" || status === "stopped") {
+      if (!(await hasApiKey())) {
+        setError("Bitte zuerst unter Einstellungen den Mistral-Schlüssel speichern.");
+        return;
+      }
       const sessionId = createSessionId();
       sessionIdRef.current = sessionId;
       setBusy(true);
@@ -209,18 +227,18 @@ export function useAufnahmeSession() {
       const uri = await stopRecorder();
       await processUri(uri);
       if (sessionIdRef.current) {
-        const finalState = await stopSession(sessionIdRef.current);
-        await applyNoteUpdate(
-          finalState.title,
-          finalState.noteMarkdown || noteMarkdownRef.current
-        );
+        const finalState = await stopSession(sessionIdRef.current, {
+          title: titleRef.current,
+          noteMarkdown: noteMarkdownRef.current,
+        });
+        await applyNoteUpdate(finalState.title, finalState.noteMarkdown);
         sessionIdRef.current = null;
       }
       if (notePathRef.current) {
         try {
           await shareNoteToSystemNotes(notePathRef.current);
         } catch {
-          // Teilen optional – Datei bleibt lokal erhalten
+          // Teilen optional
         }
       }
       setStatus("stopped");
@@ -261,6 +279,8 @@ export function useAufnahmeSession() {
     discoveries,
     error,
     busy,
+    keyConfigured,
+    refreshKeyState,
     platformLabel: Platform.OS,
     toggleStartPause,
     stop,

@@ -10,7 +10,9 @@
       "supportsTablet": false,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Die App nimmt Beratungsgespräche zur extrahierten Datenerfassung auf.",
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       },
       "bundleIdentifier": "de.eiche.aufnahme"
     },
@@ -39,7 +41,8 @@
         {
           "microphonePermission": "Die App nimmt Beratungsgespräche zur extrahierten Datenerfassung auf."
         }
-      ]
+      ],
+      "expo-secure-store"
     ]
   }
 }
