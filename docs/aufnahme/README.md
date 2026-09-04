@@ -1,93 +1,127 @@
-# Aufnahme Eiche – iPhone-App bauen und installieren
+# Aufnahme Eiche – Start mit PC und iPhone (Expo Go)
 
-Wir nutzen **kein Expo Go**.  
-Es wird eine **richtige iPhone-App** gebaut und auf dem iPhone installiert.
+Wir starten **einfach**:
+- **PC** startet die App-Entwicklungsumgebung
+- **iPhone** installiert einmalig **Expo Go** und öffnet die App darüber
 
-Wenn sich der Code ändert: alte App löschen → neu bauen → neu installieren.
+Kein Apple-Entwicklerkonto nötig. Kein NAS. Kein komplizierter App-Store-Build.
+
+Wenn der Code später geändert wird: Am PC neu starten, auf dem iPhone in Expo Go neu laden.
 
 ---
 
 ## Was Sie brauchen
 
-1. Ein **iPhone**
-2. Ein **Expo-Konto** (kostenlos): https://expo.dev/signup  
-3. Ein **Apple-Entwicklerkonto** (kostenpflichtig, ca. jährlich): https://developer.apple.com/programs/  
-4. Den **Mistral-API-Schlüssel** (später in der App unter Einst.)  
-5. Kurze Hilfe von jemandem mit Mac/Computer für den ersten Build
-
-Ohne Apple-Entwicklerkonto kann die App **nicht** dauerhaft auf einem normalen iPhone installiert werden. Das ist eine Apple-Regel.
+1. Einen **PC** (Windows ist okay) mit Internet  
+2. Ein **iPhone**  
+3. **Dasselbe WLAN** für PC und iPhone  
+4. Den **Mistral-API-Schlüssel**  
+5. Die App **Expo Go** vom App Store (kostenlos)
 
 ---
 
-## Teil 1: Konten einrichten (einmalig)
+## Einmalig auf dem iPhone
 
-### 1. Expo-Konto
-- Anlegen unter https://expo.dev/signup  
-- E-Mail und Passwort notieren
-
-### 2. Apple-Entwicklerkonto
-- Anmelden / kaufen unter https://developer.apple.com/programs/  
-- Dieselbe Apple-ID nutzen, die auch fürs iPhone gilt (oder eine Firmen-Apple-ID)
+1. App Store öffnen  
+2. Nach **Expo Go** suchen  
+3. Installieren  
+4. Fertig – Expo Go erst öffnen, wenn der PC soweit ist
 
 ---
 
-## Teil 2: App bauen (Computer)
+## Jeden Arbeitstag / zum Testen: PC starten
 
-Im Terminal:
+### 1. Terminal öffnen
+
+- Windows: „PowerShell“ oder „Eingabeaufforderung“
+
+### 2. In den App-Ordner wechseln
 
 ```bash
 cd aufnahme-app
-npm install
-npx eas login
-npx eas init
-npm run build:ios
 ```
 
-Beim iOS-Build fragt Expo nach:
-- Apple-ID / App-Passwort bzw. Entwicklerzugang  
-- Rechten für Zertifikate („credentials“) → meist **von Expo verwalten lassen** (empfohlen)
+(Falls der Ordner woanders liegt: den richtigen Pfad verwenden.)
 
-Der Build läuft in der Cloud (oft 15–30 Minuten).  
-Am Ende gibt es einen **Installationslink**.
+### 3. Beim ersten Mal installieren
+
+```bash
+npm install
+```
+
+### 4. App-Server starten
+
+```bash
+npx expo start
+```
+
+Es erscheint ein **QR-Code**.
+
+**Dieses Fenster offen lassen**, solange Sie die App nutzen.
 
 ---
 
-## Teil 3: Auf dem iPhone installieren
+## Auf dem iPhone öffnen
 
-1. Installationslink **auf dem iPhone** im Safari öffnen.  
-2. App installieren.  
-3. Falls nötig: iPhone → Einstellungen → Allgemein → VPN & Geräteverwaltung → Entwickler/Profil **vertrauen**.  
-4. App **Aufnahme Eiche** öffnen.  
-5. Oben rechts **Einst.** → Mistral-Schlüssel eintragen → Speichern.  
-6. **Start** drücken.
+1. **Expo Go** öffnen  
+2. QR-Code vom PC-Bildschirm scannen  
+   - Mit der iPhone-Kamera **oder** in Expo Go unter „Scan QR code“  
+3. Warten, bis die schwarze App mit der Uhr erscheint  
+4. Wenn nach dem Mikrofon gefragt wird: **Erlauben**
+
+### Falls der QR-Code nicht funktioniert
+
+Am PC abbrechen (Strg + C) und so starten:
+
+```bash
+npx expo start --tunnel
+```
+
+Dann erneut QR-Code scannen.  
+(`--tunnel` ist etwas langsamer, funktioniert aber oft besser in schwierigen WLANs.)
+
+---
+
+## Einmalig in der App: Schlüssel speichern
+
+1. Oben rechts auf **Einst.** tippen  
+2. Mistral-API-Schlüssel einfügen  
+3. **Speichern**  
+4. **Schließen**
+
+Das muss pro iPhone einmal gemacht werden (solange die App-Daten nicht gelöscht werden).
+
+---
+
+## Bedienung im Gespräch
+
+| Knopf | Bedeutung |
+|---|---|
+| **Start** | Aufnahme beginnt |
+| **Pause** | Kurz unterbrechen |
+| **Weiter** | Fortsetzen |
+| **Stop** | Gespräch beenden |
+
+- Erkannte Angaben erscheinen auf dem Bildschirm und bleiben stehen.  
+- Neue Einträge schieben ältere nach oben.  
+- Nach **Stop**: Teilen-Menü → **Notizen** wählen.
+
+Bei einem Anruf pausiert die App von selbst und macht danach weiter.
 
 ---
 
 ## Wenn der Code geändert wurde
 
-1. Alte App auf dem iPhone löschen (optional, aber klar).  
-2. Am Computer erneut:
+1. Am PC im Terminal ggf. alten Lauf beenden (Strg + C)  
+2. Neu starten:
 
 ```bash
 cd aufnahme-app
-npm run build:ios
+npx expo start
 ```
 
-3. Neue Version über den neuen Link installieren.  
-4. Schlüssel unter **Einst.** ggf. erneut eintragen.
-
----
-
-## Bedienung
-
-| Knopf | Bedeutung |
-|---|---|
-| **Start** | Aufnahme beginnt |
-| **Pause** | Unterbrechen |
-| **Weiter** | Fortsetzen |
-| **Stop** | Beenden |
-
-Nach Stop: Teilen → **Notizen** wählen.
+3. Auf dem iPhone in Expo Go die App erneut öffnen / neu laden  
+4. Fertig – **keine** Neuinstallation nötig
 
 ---
 
@@ -95,31 +129,30 @@ Nach Stop: Teilen → **Notizen** wählen.
 
 | Problem | Was tun |
 |---|---|
-| Kein Apple-Entwicklerkonto | Muss zuerst eingerichtet werden |
-| Installation blockiert | Unter „VPN & Geräteverwaltung“ dem Profil vertrauen |
-| „Schlüssel fehlt“ | In der App unter **Einst.** speichern |
-| Kein Mikrofon | iPhone-Einstellungen → Aufnahme Eiche → Mikrofon erlauben |
-| Build-Fehler | Meldung an IT / Agenten schicken |
+| QR-Code geht nicht | Gleichen WLAN prüfen oder `npx expo start --tunnel` |
+| Schwarzer Bildschirm / lädt nicht | PC-Fenster prüfen, ob noch läuft; in Expo Go neu verbinden |
+| „Schlüssel fehlt“ | Unter **Einst.** speichern |
+| Kein Mikrofon | iPhone-Einstellungen → Expo Go → Mikrofon erlauben |
+| Keine erkannten Daten | Internet am iPhone prüfen |
 
 ---
 
 ## Datenschutz kurz
 
-- App auf dem iPhone + Mistral (EU)  
-- In Notizen nur die Tabelle, nicht das ganze Gespräch  
-- iPhone mit Code/Face ID schützen (API-Schlüssel liegt auf dem Gerät)
+- Die Auswertung läuft über Mistral (EU).  
+- In die Notizen kommt nur die Tabelle, nicht das ganze Gespräch.  
+- Der API-Schlüssel liegt auf dem iPhone – Gerät mit Code/Face ID schützen.
 
 ---
 
-## Für die IT
+## Für die IT (kurz)
 
 ```bash
 cd aufnahme-app
-npx eas login
-npx eas init
-npx eas build --platform ios --profile preview
+npm install
+npx expo start
+# bei Netzwerkproblemen:
+npx expo start --tunnel
 ```
 
-- Bundle-ID: `de.eiche.aufnahme`  
-- Profil `preview` in `eas.json` = interne Verteilung  
-- Credentials möglichst von EAS verwalten lassen
+Spätere echte App-Store-/IPA-Builds sind möglich, aber **jetzt bewusst nicht** der Weg.
