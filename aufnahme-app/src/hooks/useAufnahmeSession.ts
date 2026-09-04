@@ -2,8 +2,11 @@ import { Audio } from "expo-av";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Platform, type AppStateStatus } from "react-native";
 import { sendAudioSegment, startSession, stopSession } from "../services/api";
+import { diffDiscoveries, type Discovery } from "../services/discoveries";
 import { shareNoteToSystemNotes, upsertNoteFile } from "../services/notes";
 import type { SessionStatus } from "../types/session";
+
+const SEGMENT_MS = 30_000;
 
 function createSessionId() {
   return `s-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
@@ -13,6 +16,7 @@ export function useAufnahmeSession() {
   const [status, setStatus] = useState<SessionStatus>("idle");
   const [title, setTitle] = useState("Aufnahme");
   const [noteMarkdown, setNoteMarkdown] = useState("");
+  const [discoveries, setDiscoveries] = useState<Discovery[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -23,6 +27,9 @@ export function useAufnahmeSession() {
   const interruptedRef = useRef(false);
   const processingRef = useRef(false);
   const noteMarkdownRef = useRef("");
+  const titleRef = useRef("Aufnahme");
+  const discoverySeqRef = useRef(0);
+  const segmentTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     statusRef.current = status;
@@ -32,7 +39,28 @@ export function useAufnahmeSession() {
     noteMarkdownRef.current = noteMarkdown;
   }, [noteMarkdown]);
 
-  const persistNote = useCallback(async (nextTitle: string, markdown: string) => {
+  useEffect(() => {
+    titleRef.current = title;
+  }, [title]);
+
+  const clearSegmentTimer = useCallback(() => {
+    if (segmentTimerRef.current) {
+      clearInterval(segmentTimerRef.current);
+      segmentTimerRef.current = null;
+    }
+  }, []);
+
+  const applyNoteUpdate = useCallback(async (nextTitle: string, markdown: string) => {
+    const found = diffDiscoveries(
+      noteMarkdownRef.current,
+      markdown,
+      titleRef.current,
+      nextTitle,
+      discoverySeqRef.current++
+    );
+    if (found.length > 0) {
+      setDiscoveries((prev) => [...prev, ...found]);
+    }
     setTitle(nextTitle);
     setNoteMarkdown(markdown);
     notePathRef.current = await upsertNoteFile(notePathRef.current, nextTitle, markdown);
@@ -58,7 +86,7 @@ export function useAufnahmeSession() {
       try {
         const result = await sendAudioSegment(sessionIdRef.current, uri);
         if (!result.skipped) {
-          await persistNote(result.title, result.noteMarkdown);
+          await applyNoteUpdate(result.title, result.noteMarkdown);
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Verarbeitung fehlgeschlagen");
@@ -67,7 +95,7 @@ export function useAufnahmeSession() {
         setBusy(false);
       }
     },
-    [persistNote]
+    [applyNoteUpdate]
   );
 
   const beginRecording = useCallback(async () => {
@@ -90,15 +118,31 @@ export function useAufnahmeSession() {
     return true;
   }, []);
 
-  const pauseInternal = useCallback(
-    async () => {
-      if (statusRef.current !== "recording") return;
-      const uri = await stopRecorder();
+  const rotateSegment = useCallback(async () => {
+    if (statusRef.current !== "recording") return;
+    const uri = await stopRecorder();
+    const ok = await beginRecording();
+    if (!ok) {
       setStatus("paused");
-      await processUri(uri);
-    },
-    [processUri, stopRecorder]
-  );
+      clearSegmentTimer();
+    }
+    await processUri(uri);
+  }, [beginRecording, clearSegmentTimer, processUri, stopRecorder]);
+
+  const startSegmentTimer = useCallback(() => {
+    clearSegmentTimer();
+    segmentTimerRef.current = setInterval(() => {
+      void rotateSegment();
+    }, SEGMENT_MS);
+  }, [clearSegmentTimer, rotateSegment]);
+
+  const pauseInternal = useCallback(async () => {
+    if (statusRef.current !== "recording") return;
+    clearSegmentTimer();
+    const uri = await stopRecorder();
+    setStatus("paused");
+    await processUri(uri);
+  }, [clearSegmentTimer, processUri, stopRecorder]);
 
   const resumeInternal = useCallback(async () => {
     if (statusRef.current !== "paused" && statusRef.current !== "idle") return;
@@ -107,7 +151,8 @@ export function useAufnahmeSession() {
     interruptedRef.current = false;
     setStatus("recording");
     setError(null);
-  }, [beginRecording]);
+    startSegmentTimer();
+  }, [beginRecording, startSegmentTimer]);
 
   const toggleStartPause = useCallback(async () => {
     if (busy) return;
@@ -118,11 +163,23 @@ export function useAufnahmeSession() {
       sessionIdRef.current = sessionId;
       setBusy(true);
       try {
+        setDiscoveries([]);
+        discoverySeqRef.current = 0;
+        notePathRef.current = null;
         const started = await startSession(sessionId);
-        await persistNote(started.title, started.noteMarkdown || "Aufnahme\n");
+        setTitle(started.title);
+        setNoteMarkdown(started.noteMarkdown || "Aufnahme\n");
+        noteMarkdownRef.current = started.noteMarkdown || "Aufnahme\n";
+        titleRef.current = started.title;
+        notePathRef.current = await upsertNoteFile(
+          null,
+          started.title,
+          started.noteMarkdown || "Aufnahme\n"
+        );
         const ok = await beginRecording();
         if (!ok) return;
         setStatus("recording");
+        startSegmentTimer();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Start fehlgeschlagen");
         setStatus("idle");
@@ -140,19 +197,20 @@ export function useAufnahmeSession() {
     if (status === "paused") {
       await resumeInternal();
     }
-  }, [beginRecording, busy, pauseInternal, persistNote, resumeInternal, status]);
+  }, [beginRecording, busy, pauseInternal, resumeInternal, startSegmentTimer, status]);
 
   const stop = useCallback(async () => {
     if (statusRef.current === "idle" || statusRef.current === "stopped") return;
     setBusy(true);
     setError(null);
     interruptedRef.current = false;
+    clearSegmentTimer();
     try {
       const uri = await stopRecorder();
       await processUri(uri);
       if (sessionIdRef.current) {
         const finalState = await stopSession(sessionIdRef.current);
-        await persistNote(
+        await applyNoteUpdate(
           finalState.title,
           finalState.noteMarkdown || noteMarkdownRef.current
         );
@@ -171,7 +229,7 @@ export function useAufnahmeSession() {
     } finally {
       setBusy(false);
     }
-  }, [persistNote, processUri, stopRecorder]);
+  }, [applyNoteUpdate, clearSegmentTimer, processUri, stopRecorder]);
 
   useEffect(() => {
     const onChange = (next: AppStateStatus) => {
@@ -191,14 +249,16 @@ export function useAufnahmeSession() {
 
   useEffect(() => {
     return () => {
+      clearSegmentTimer();
       void stopRecorder();
     };
-  }, [stopRecorder]);
+  }, [clearSegmentTimer, stopRecorder]);
 
   return {
     status,
     title,
     noteMarkdown,
+    discoveries,
     error,
     busy,
     platformLabel: Platform.OS,

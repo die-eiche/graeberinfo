@@ -2,6 +2,7 @@ import { useKeepAwake } from "expo-keep-awake";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { StyleSheet, Text, View } from "react-native";
+import { DiscoveryFeed } from "./src/components/DiscoveryFeed";
 import { GlassButton } from "./src/components/GlassButton";
 import { SystemClock } from "./src/components/SystemClock";
 import { useAufnahmeSession } from "./src/hooks/useAufnahmeSession";
@@ -13,7 +14,8 @@ function KeepAwakeOn() {
 }
 
 export default function App() {
-  const { status, title, error, busy, toggleStartPause, stop } = useAufnahmeSession();
+  const { status, title, discoveries, error, busy, toggleStartPause, stop } =
+    useAufnahmeSession();
 
   const primaryLabel =
     status === "recording" ? "Pause" : status === "paused" ? "Weiter" : "Start";
@@ -35,11 +37,15 @@ export default function App() {
         <View style={styles.screen}>
           <SystemClock />
 
-          <View style={styles.centerBlock}>
+          <View style={styles.header}>
             <Text style={styles.status}>{statusLabel}</Text>
             <Text style={styles.noteTitle} numberOfLines={1}>
               {title}
             </Text>
+          </View>
+
+          <View style={styles.feed}>
+            <DiscoveryFeed items={discoveries} />
           </View>
 
           <View style={styles.controls}>
@@ -74,11 +80,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
     paddingHorizontal: 24,
-    justifyContent: "space-between",
   },
-  centerBlock: {
+  header: {
     alignItems: "center",
-    gap: 8,
+    gap: 6,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
   status: {
     color: colors.subtle,
@@ -90,9 +97,14 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.7)",
     fontSize: 16,
   },
+  feed: {
+    flex: 1,
+    minHeight: 120,
+  },
   controls: {
     alignItems: "center",
-    paddingBottom: 36,
+    paddingBottom: 12,
+    paddingTop: 8,
   },
   gap: {
     height: 14,
