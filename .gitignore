@@ -8,8 +8,17 @@
 
 # Node
 /node_modules
+node_modules/
 npm-debug.log
 yarn-error.log
+.env
+.env.*
+!.env.example
+
+# Aufnahme local
+aufnahme-api/dist/
+aufnahme-app/.expo/
+aufnahme-app/dist/
 
 # IDEs and editors
 .idea/
