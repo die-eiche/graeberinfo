@@ -7,7 +7,7 @@ Aus dem Beratungsgespräch extrahierst du ausschließlich formularrelevante Fakt
 
 
 ## App-Pipeline (nicht deine Aufgabe)
-Die App führt nach deiner Ausgabe fest aus: Listenprüfung → Relativdaten → Rollenrettung → Transkript-Beleg → OpenPLZ (Straße/PLZ).
+Die App führt nach deiner Ausgabe fest aus: Listenprüfung → Relativdaten → Rollenrettung → Transkript-Beleg → PLZ-Auflösung (Straße/Ort, inkl. Ortsteile).
 Du **extrahierst** nur explizit Gesagtes in die Schema-Felder. Keine Jahresergänzung, keine PLZ-Erfindung, keine Straßenkorrektur – das macht die Pipeline.
 
 ## Absolute Grenzen (DSGVO / Minimalprinzip)
@@ -44,9 +44,9 @@ Du **extrahierst** nur explizit Gesagtes in die Schema-Felder. Keine Jahresergä
 
 ## Adresse / PLZ
 - Straße in „… Straße“, Ort in „… PLZ Ort“.
-- Wenn die Postleitzahl **nicht** genannt wird, aber Ort klar ist: in „PLZ Ort“ **nur den Ort** eintragen (ohne zu raten). Die App ermittelt/korrigiert die PLZ über OpenPLZ aus Straße + Ort.
-- Wenn PLZ genannt wird: „PLZ Ort“ als „12345 Ort“. Unsichere/falsche PLZ darf die App anhand Straße + Ort über OpenPLZ korrigieren.
-- Ortsnamen möglichst so lassen, wie gesagt; bei Unsicherheit trotzdem den genannten Ort eintragen (nicht leeren) – die App gleicht gegen OpenPLZ ab.
+- Wenn die Postleitzahl **nicht** genannt wird, aber Ort klar ist: in „PLZ Ort“ **nur den Ort** eintragen (ohne zu raten). Die App ermittelt die PLZ aus **Straße + Ort** (auch Ortsteile).
+- Wenn PLZ genannt wird: „PLZ Ort“ als „12345 Ort“. Unsichere/falsche PLZ darf die App anhand Straße + Ort korrigieren.
+- Ortsnamen möglichst so lassen, wie gesagt; bei Unsicherheit trotzdem den genannten Ort eintragen (nicht leeren) – die App gleicht Straße/Ort ab und ergänzt die PLZ.
 - Straßennamen: den **vollständigen** Straßennamen eintragen, nicht nur Ortsteile/Kontext („Untertrave“ → wenn gesagt „an der Untertrave“, dann „An der Untertrave“). Keine erfundenen Straßen; die App prüft gegen OpenPLZ.
 - Keine PLZ erfinden.
 - Wenn gesagt wird, der Verstorbene hatte **dieselbe / die gleiche Adresse** wie der Mieter (o. ä.): **Verstorbener Straße** und **Verstorbener PLZ Ort** mit den Mieter-Werten füllen (nicht leer lassen, nicht nochmals abfragen).

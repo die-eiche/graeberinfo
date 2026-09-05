@@ -17,6 +17,7 @@ import {
 } from "../src/services/noteMerge";
 import {
   enrichNotePostalCodes,
+  localitySpellingVariants,
   normalizeLocalityQuery,
   normalizeStreetForLookup,
   parsePlzOrt,
@@ -174,6 +175,23 @@ async function main() {
   const streetFields = parseNoteFields(streetFixed);
   assert(streetFields["Mieter Straße"] === "An der Untertrave 7", "Straße kanonisch korrigiert");
   assert(streetFields["Mieter PLZ Ort"].startsWith("23552"), "PLZ zu An der Untertrave gesetzt");
+
+  assert(
+    localitySpellingVariants("Dunkelstorf").includes("Dunkelsdorf"),
+    "Ortsvariante Dunkelstorf → Dunkelsdorf"
+  );
+  const ortsteil = await enrichNotePostalCodes(
+    noteWith({
+      "Mieter Straße": "Turmstrasse 8",
+      "Mieter PLZ Ort": "Dunkelstorf",
+    })
+  );
+  const ortsteilFields = parseNoteFields(ortsteil);
+  assert(
+    ortsteilFields["Mieter PLZ Ort"] === "23623 Dunkelsdorf",
+    "Ortsteil: Straße+Ort → PLZ 23623 Dunkelsdorf"
+  );
+
 
   assert(extractUndertakerFromTranscript("Bestatter Söhnlein") === "Söhnlein", "Bestatter aus Transkript");
   assert(

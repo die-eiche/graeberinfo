@@ -353,38 +353,171 @@ export async function resolveStreetFromOpenPlz(
 }
 
 /**
- * Ermittelt die eindeutige PLZ zu Straße + Ort über OpenPLZ.
- * Nutzt bei unscharfem Orts-/Straßennamen OpenPLZ-Abgleich (inkl. ASR-Nähe).
+ * ASR-/Tippvarianten für Ortsnamen (z. B. Dunkelstorf → Dunkelsdorf).
+ */
+export function localitySpellingVariants(ort: string): string[] {
+  const base = normalizeLocalityQuery(ort) || ort.trim();
+  if (!base) return [];
+  const out: string[] = [];
+  const add = (value: string) => {
+    const next = value.trim();
+    if (!next) return;
+    if (out.some((x) => foldPlaceName(x) === foldPlaceName(next))) return;
+    out.push(next);
+  };
+  add(base);
+  if (/storf$/i.test(base)) add(base.replace(/storf$/i, "sdorf"));
+  if (/sdorf$/i.test(base)) add(base.replace(/sdorf$/i, "storf"));
+  if (/stedt$/i.test(base)) add(base.replace(/stedt$/i, "städt"));
+  if (/städt$/i.test(base) || /staedt$/i.test(base)) {
+    add(base.replace(/städt$/i, "stedt").replace(/staedt$/i, "stedt"));
+  }
+  return out;
+}
+
+type NominatimHit = {
+  address?: {
+    postcode?: string;
+    village?: string;
+    hamlet?: string;
+    suburb?: string;
+    town?: string;
+    city?: string;
+    municipality?: string;
+    city_district?: string;
+    road?: string;
+  };
+};
+
+function nominatimPlaceName(address: NonNullable<NominatimHit["address"]>, fallback: string): string {
+  return (
+    address.village ||
+    address.hamlet ||
+    address.suburb ||
+    address.city_district ||
+    address.town ||
+    address.city ||
+    address.municipality ||
+    fallback
+  );
+}
+
+function nominatimMatchesLocality(
+  address: NonNullable<NominatimHit["address"]>,
+  localityVariants: string[]
+): boolean {
+  const hay = foldPlaceName(
+    [
+      address.village,
+      address.hamlet,
+      address.suburb,
+      address.city_district,
+      address.town,
+      address.city,
+      address.municipality,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+  if (!hay) return false;
+  return localityVariants.some((variant) => {
+    const needle = foldPlaceName(variant);
+    return Boolean(needle) && (hay === needle || hay.includes(needle) || needle.includes(hay));
+  });
+}
+
+/**
+ * Fallback für Ortsteile, die OpenPLZ nicht als Locality kennt
+ * (z. B. Dunkelsdorf → PLZ über Straße + Ort via Nominatim).
+ */
+export async function lookupPostalCodeViaNominatim(
+  street: string,
+  locality: string
+): Promise<{ postalCode: string; locality: string; streetName?: string } | null> {
+  const { name, house } = splitStreetAndHouseNumber(street);
+  if (!name) return null;
+  const variants = localitySpellingVariants(locality);
+  if (!variants.length) return null;
+
+  const streetPart = house ? `${name} ${house}` : name;
+  const accepted: Array<{ postalCode: string; locality: string; streetName?: string }> = [];
+
+  for (const loc of variants) {
+    const params = new URLSearchParams({
+      q: `${streetPart}, ${loc}, Deutschland`,
+      format: "json",
+      addressdetails: "1",
+      limit: "5",
+      countrycodes: "de",
+    });
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "GraeberinfoAufnahme/1.0 (https://github.com/die-eiche/graeberinfo)",
+      },
+    });
+    if (!response.ok) continue;
+    const data = (await response.json()) as NominatimHit[];
+    if (!Array.isArray(data) || data.length === 0) continue;
+
+    for (const hit of data) {
+      const address = hit.address;
+      const postcode = address?.postcode?.trim() ?? "";
+      if (!/^\d{5}$/.test(postcode) || !address) continue;
+      if (!nominatimMatchesLocality(address, variants)) continue;
+      accepted.push({
+        postalCode: postcode,
+        locality: nominatimPlaceName(address, loc),
+        streetName: address.road?.trim() || undefined,
+      });
+    }
+    if (accepted.length) break;
+  }
+
+  if (!accepted.length) return null;
+  const plzSet = new Set(accepted.map((row) => row.postalCode));
+  if (plzSet.size !== 1) return null;
+  return accepted[0];
+}
+
+/**
+ * Ermittelt die eindeutige PLZ zu Straße + Ort.
+ * 1) OpenPLZ (Gemeinde/Stadt)
+ * 2) Orts-Tippvarianten in OpenPLZ
+ * 3) Nominatim-Fallback für Ortsteile (Straße + Ort reichen)
  */
 export async function lookupPostalCode(
   street: string,
   locality: string
 ): Promise<{ postalCode: string; locality: string; streetName?: string } | null> {
-  const resolved = await resolveStreetFromOpenPlz(street, locality);
-  if (resolved) {
-    return {
-      postalCode: resolved.postalCode,
-      locality: resolved.locality,
-      streetName: resolved.name,
-    };
-  }
-
   const ortRaw = locality.trim();
   const streetNorm = normalizeStreetForLookup(street);
   if (!ortRaw || !streetNorm) return null;
-  const ortQuery = normalizeLocalityQuery(ortRaw) || ortRaw;
 
-  let hits = await lookupStreetsForLocality(streetNorm, ortQuery);
-  let exact = uniquePostalFromHits(hits, ortQuery);
-  if (exact) return exact;
+  const variants = localitySpellingVariants(ortRaw);
+  for (const variant of variants) {
+    const resolved = await resolveStreetFromOpenPlz(street, variant);
+    if (resolved) {
+      return {
+        postalCode: resolved.postalCode,
+        locality: resolved.locality,
+        streetName: resolved.name,
+      };
+    }
 
-  const localityNames = await resolveLocalityNamesFromOpenPlz(ortQuery);
-  for (const name of localityNames) {
-    hits = await lookupStreetsForLocality(streetNorm, name);
-    exact = uniquePostalFromHits(hits, name);
+    let hits = await lookupStreetsForLocality(streetNorm, variant);
+    let exact = uniquePostalFromHits(hits, variant);
     if (exact) return exact;
+
+    const localityNames = await resolveLocalityNamesFromOpenPlz(variant);
+    for (const name of localityNames) {
+      hits = await lookupStreetsForLocality(streetNorm, name);
+      exact = uniquePostalFromHits(hits, name);
+      if (exact) return exact;
+    }
   }
-  return null;
+
+  return lookupPostalCodeViaNominatim(street, ortRaw);
 }
 
 /**
@@ -449,10 +582,21 @@ export async function enrichNotePostalCodes(noteMarkdown: string): Promise<strin
         continue;
       }
 
-      const resolved = await resolvePlzOrtValue(street, plzOrt);
-      if (resolved) {
-        fields[pair.plzOrt] = resolved;
+      // Ortsteile / ASR-Ort: Straße + Ort reichen (OpenPLZ-Varianten + Nominatim)
+      const found = await lookupPostalCode(street, ort);
+      if (!found) continue;
+      const nextPlzOrt = `${found.postalCode} ${found.locality}`;
+      if ((fields[pair.plzOrt] ?? "").trim() !== nextPlzOrt) {
+        fields[pair.plzOrt] = nextPlzOrt;
         changed = true;
+      }
+      if (found.streetName) {
+        const { house } = splitStreetAndHouseNumber(street);
+        const canonical = house ? `${found.streetName} ${house}` : found.streetName;
+        if (foldPlaceName(canonical) !== foldPlaceName(street)) {
+          fields[pair.street] = canonical;
+          changed = true;
+        }
       }
     } catch {
       // Netzwerkfehler: Stand unverändert lassen
