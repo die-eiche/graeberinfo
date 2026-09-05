@@ -19,6 +19,7 @@ import { applySameAddressFromTenant } from "./addressInference";
 import { enrichNoteDates } from "./dateEnrichment";
 import { parseNoteFields } from "./discoveries";
 import { clearUngroundedFields } from "./fieldGrounding";
+import { applySpokenCorrections } from "./fieldCorrections";
 import { rescueMisplacedFields } from "./fieldRescue";
 import {
   emptyNoteMarkdown,
@@ -55,6 +56,7 @@ export type NotePipelineStage =
   | "merge_allowed_values"
   | "enrich_dates"
   | "rescue_roles"
+  | "apply_corrections"
   | "clear_ungrounded_full"
   | "same_address"
   | "openplz_street_plz";
@@ -68,6 +70,7 @@ export const NOTE_PIPELINE_STAGES: readonly NotePipelineStage[] = [
   "merge_allowed_values",
   "enrich_dates",
   "rescue_roles",
+  "apply_corrections",
   "clear_ungrounded_full",
   "same_address",
   "openplz_street_plz",
@@ -111,7 +114,13 @@ export async function runNotePipeline(input: NotePipelineInput): Promise<NoteSna
   // 5) Rollen aus Transkript retten (füllt/korrigiert, löscht keinen belegten Altbestand ohne Anlass)
   fields = rescueMisplacedFields(fields, transcript);
 
-  // 6) Stop/Full: Gesamtstand gegen volles Transkript belegen
+  // 6) Gesprochene Korrekturen (nicht X sondern Y) – gewinnen gegen Altbestand und Modell-Wiederholung
+  fields = applySpokenCorrections(fields, transcript);
+
+  // 6b) Nach Korrekturen Datumsfelder nochmals anreichern (z. B. „gestern“ → TT.MM.JJJJ)
+  fields = enrichNoteDates(fields, now, "");
+
+  // 7) Stop/Full: Gesamtstand gegen volles Transkript belegen
   if (mode === "full") {
     fields = clearUngroundedFields(fields, transcript);
   }

@@ -242,17 +242,19 @@ export function applyRelativeDeathDateFromTranscript(
     /\bist\s+(vorgestern|gestern|heute)\s+(verstorben|gestorben)\b/i,
   ];
 
+  // Spätere Relativangaben gewinnen (Korrektur: „vorgestern … nein gestern“)
   let token: string | null = null;
   for (const pattern of patterns) {
-    const match = pattern.exec(text);
-    if (!match) continue;
-    for (const g of match.slice(1)) {
-      if (g && resolveRelativeDateToken(g, now)) {
-        token = g;
-        break;
+    const re = new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : pattern.flags + "g");
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(text))) {
+      for (const g of match.slice(1)) {
+        if (g && resolveRelativeDateToken(g, now)) {
+          token = g;
+          break;
+        }
       }
     }
-    if (token) break;
   }
 
   if (!token) return next;

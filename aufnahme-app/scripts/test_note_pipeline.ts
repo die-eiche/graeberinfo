@@ -18,7 +18,7 @@ async function main() {
   assert(NOTE_PIPELINE_STAGES.length >= 6, "feste Pipeline-Stufen vorhanden");
   assert(
     NOTE_PIPELINE_STAGES.join(">") ===
-      "ground_incoming>merge_allowed_values>enrich_dates>rescue_roles>clear_ungrounded_full>same_address>openplz_street_plz",
+      "ground_incoming>merge_allowed_values>enrich_dates>rescue_roles>apply_corrections>clear_ungrounded_full>same_address>openplz_street_plz",
     "Stufenreihenfolge stabil"
   );
 
@@ -114,7 +114,44 @@ async function main() {
   assert(!fullFields["Verstorbener Vorname"], "Full-Mode: unbelegte Anna entfernt");
   assert(!fullFields.Grab, "Full-Mode: unbelegtes Grab entfernt");
 
-  if (failed) {
+  
+  // Korrekturen: „nicht X sondern Y“ überschreibt Altbestand auch wenn Extrakt den alten Wert wiederholt
+  const wrongName = renderNoteMarkdown({
+    "Verstorbener Vorname": "Anna",
+    "Verstorbener Nachname": "Berger",
+    Bestatter: "Söhnlein",
+  });
+  const correctionTranscript =
+    "Die Verstorbene heißt Anna Berger. Bestatter Söhnlein. " +
+    "Nicht Anna, sondern Else. Bestatter nicht Söhnlein sondern Müller.";
+  const stubbornExtract = renderNoteMarkdown({
+    "Verstorbener Vorname": "Anna",
+    Bestatter: "Söhnlein",
+  });
+  const corrected = await runNotePipeline({
+    rawMarkdown: stubbornExtract,
+    transcript: correctionTranscript,
+    previousNote: wrongName,
+    now,
+    mode: "segment",
+  });
+  const cf = parseNoteFields(corrected.noteMarkdown);
+  assert(cf["Verstorbener Vorname"] === "Else", "Korrektur: Vorname Anna → Else");
+  assert(cf.Bestatter === "Müller", "Korrektur: Bestatter Söhnlein → Müller");
+
+  // Nachname-Korrektur gegen sticky previous
+  const lastNamePrev = renderNoteMarkdown({ "Mieter Nachname": "Berger" });
+  const lastNameFix = await runNotePipeline({
+    rawMarkdown: emptyNoteMarkdown(),
+    transcript: "Mieter Nachname nicht Berger sondern Meier.",
+    previousNote: lastNamePrev,
+    now,
+    mode: "segment",
+  });
+  const lf = parseNoteFields(lastNameFix.noteMarkdown);
+  assert(lf["Mieter Nachname"] === "Meier", "Korrektur: Nachname Berger → Meier");
+
+if (failed) {
     console.error(`\n${failed} fehlgeschlagen`);
     process.exit(1);
   }

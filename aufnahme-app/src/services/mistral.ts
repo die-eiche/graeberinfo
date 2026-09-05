@@ -1,7 +1,7 @@
 import { File, Paths, UploadType } from "expo-file-system";
 import { getApiKey } from "./apiKey";
 import { emptyNoteMarkdown, renderNoteMarkdown, titleFromMieter } from "./noteMerge";
-import { parseNoteFields } from "./discoveries";
+import { NOTE_FIELDS, parseNoteFields } from "./discoveries";
 import {
   normalizeExistingNote,
   runNotePipeline,
@@ -102,6 +102,19 @@ export function createEmptyNote(): NoteSnapshot {
   return snapshotFromMarkdown(EMPTY_NOTE);
 }
 
+
+/** Kompakte Ist-Notiz für den Extraktions-Prompt (nur gesetzte Felder). */
+function formatNoteStateForPrompt(noteMarkdown: string): string {
+  const fields = parseNoteFields(noteMarkdown || "");
+  const lines = NOTE_FIELDS
+    .map((field) => {
+      const value = (fields[field] ?? "").trim();
+      return value ? `- ${field}: ${value}` : "";
+    })
+    .filter(Boolean);
+  return lines.length ? lines.join("\n") : "(noch leer)";
+}
+
 export async function extractFromTranscript(
   sessionId: string,
   transcript: string,
@@ -115,11 +128,14 @@ export async function extractFromTranscript(
     "Gebundener Gesprächstext (letzte Abschnitte an Pausen geschnitten und zusammengefügt):",
     transcript,
     "",
+    "Aktueller Notizstand (Ist) – Korrekturen im Text müssen betroffene Felder mit dem NEUEN Wert überschreiben:",
+    formatNoteStateForPrompt(previousNote),
+    "",
     "Extrahiere aus diesem gebundenen Text. Spätere Aussagen und Korrekturen haben Vorrang.",
     "Felder, die im Text nicht klar vorkommen, leer lassen.",
     "Verwandter ≠ Mieter ≠ Verstorbener ≠ Bestatter. Namen strikt dem genannten Rolle-Feld zuordnen.",
     "Explizite Mieter-Angabe in Mieter-Felder; Verstorbenennamen nur in Verstorbener; Bestatter nur in Bestatter.",
-    "Korrekturen gelten für ALLE Felder: jeden neu genannten/korrigierten Wert in das passende Feld schreiben.",
+    "Korrekturen gelten für ALLE Felder: „nicht X sondern Y“, „richtig ist …“, „ich meinte …“ → NEUEN Wert schreiben, alten nicht stehen lassen.",
     "Adresse: Straße und Ort getrennt; vollständigen Straßennamen (nicht nur Kontext). Ohne PLZ nur Ort – App prüft Straße/PLZ gegen OpenPLZ und korrigiert ASR-Fehler.",
     "Gleiche Adresse Verstorbener/Mieter ausdrücklich übernehmen (Straße + PLZ Ort kopieren).",
     "Bestatter-Name (z. B. „Bestatter Söhnlein“) NUR in Feld Bestatter – NIEMALS in Verwandtschaftsverhältnis.",
