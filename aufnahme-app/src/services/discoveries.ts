@@ -5,6 +5,49 @@ export type Discovery = {
   at: number;
 };
 
+/** Reihenfolge der Aufnahme-Felder (wie im System-Prompt / leere Notiz). */
+export const NOTE_FIELDS = [
+  "Mieter Vorname",
+  "Mieter Nachname",
+  "Mieter Verwandtschaftsverhältnis zum Verstorbenen",
+  "Mieter Straße",
+  "Mieter PLZ Ort",
+  "Mieter Telefon 1",
+  "Mieter Telefon 2",
+  "Mieter E-Mail",
+  "Mieter Überweisung oder SEPA",
+  "Mieter IBAN",
+  "Mieter Kontoinhaber",
+  "Verstorbener Vorname",
+  "Verstorbener Nachname",
+  "Verstorbener Straße",
+  "Verstorbener PLZ Ort",
+  "Verstorbener Geburtstag",
+  "Verstorbener Todestag",
+  "Bestatter",
+  "Bestatter-Aufwand",
+  "Grab",
+  "Urne",
+  "TF-Wunschtermin",
+  "TF-Ideen",
+] as const;
+
+export type NoteFieldName = (typeof NOTE_FIELDS)[number];
+
+export type NoteTableRow = {
+  field: string;
+  value: string;
+};
+
+/** Baut die volle Tabelle inkl. leerer Felder. */
+export function buildNoteTableRows(noteMarkdown: string): NoteTableRow[] {
+  const values = parseNoteFields(noteMarkdown);
+  return NOTE_FIELDS.map((field) => ({
+    field,
+    value: values[field] ?? "",
+  }));
+}
+
 /** Parst die Markdown-Tabelle `| Feld | Wert |` in ein Map. */
 export function parseNoteFields(noteMarkdown: string): Record<string, string> {
   const fields: Record<string, string> = {};

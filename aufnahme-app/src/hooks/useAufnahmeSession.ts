@@ -15,7 +15,7 @@ import { diffDiscoveries, type Discovery } from "../services/discoveries";
 import { shareNoteToSystemNotes, upsertNoteFile } from "../services/notes";
 import type { SessionStatus } from "../types/session";
 
-const SEGMENT_MS = 30_000;
+const SEGMENT_MS = 10_000;
 
 /** WAV/PCM auf iOS – von Mistral zuverlässig dekodierbar. Android: AAC/M4A. */
 const RECORDING_OPTIONS: RecordingOptions =
@@ -87,6 +87,7 @@ export function useAufnahmeSession() {
   const [title, setTitle] = useState("Aufnahme");
   const [noteMarkdown, setNoteMarkdown] = useState("");
   const [discoveries, setDiscoveries] = useState<Discovery[]>([]);
+  const [focusFields, setFocusFields] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [keyConfigured, setKeyConfigured] = useState(false);
@@ -97,6 +98,7 @@ export function useAufnahmeSession() {
   const statusRef = useRef<SessionStatus>("idle");
   const interruptedRef = useRef(false);
   const processingRef = useRef(false);
+  const queueRef = useRef<string[]>([]);
   const noteMarkdownRef = useRef("");
   const titleRef = useRef("Aufnahme");
   const discoverySeqRef = useRef(0);
@@ -139,6 +141,7 @@ export function useAufnahmeSession() {
     );
     if (found.length > 0) {
       setDiscoveries((prev) => [...prev, ...found]);
+      setFocusFields(found.map((d) => d.field).filter((f) => f !== "Notiz-Titel"));
     }
     setTitle(nextTitle);
     setNoteMarkdown(markdown);
@@ -158,28 +161,42 @@ export function useAufnahmeSession() {
     }
   }, []);
 
-  const processUri = useCallback(
-    async (uri: string | null) => {
-      if (!uri || !sessionIdRef.current || processingRef.current) return;
-      processingRef.current = true;
-      setBusy(true);
-      try {
-        const result = await sendAudioSegment(
-          sessionIdRef.current,
-          uri,
-          noteMarkdownRef.current
-        );
-        if (!result.skipped) {
-          await applyNoteUpdate(result.title, result.noteMarkdown);
+  const drainQueue = useCallback(async () => {
+    if (processingRef.current) return;
+    processingRef.current = true;
+    try {
+      while (queueRef.current.length > 0) {
+        const uri = queueRef.current.shift();
+        if (!uri || !sessionIdRef.current) continue;
+        try {
+          const result = await sendAudioSegment(
+            sessionIdRef.current,
+            uri,
+            noteMarkdownRef.current
+          );
+          if (!result.skipped) {
+            await applyNoteUpdate(result.title, result.noteMarkdown);
+            setError(null);
+          }
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "Verarbeitung fehlgeschlagen");
         }
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Verarbeitung fehlgeschlagen");
-      } finally {
-        processingRef.current = false;
-        setBusy(false);
       }
+    } finally {
+      processingRef.current = false;
+      if (queueRef.current.length > 0) {
+        void drainQueue();
+      }
+    }
+  }, [applyNoteUpdate]);
+
+  const processUri = useCallback(
+    (uri: string | null) => {
+      if (!uri || !sessionIdRef.current) return;
+      queueRef.current.push(uri);
+      void drainQueue();
     },
-    [applyNoteUpdate]
+    [drainQueue]
   );
 
   const beginRecording = useCallback(async () => {
@@ -252,6 +269,7 @@ export function useAufnahmeSession() {
       setBusy(true);
       try {
         setDiscoveries([]);
+        setFocusFields([]);
         discoverySeqRef.current = 0;
         notePathRef.current = null;
         const started = await startSession(sessionId);
@@ -347,6 +365,7 @@ export function useAufnahmeSession() {
     title,
     noteMarkdown,
     discoveries,
+    focusFields,
     error,
     busy,
     keyConfigured,

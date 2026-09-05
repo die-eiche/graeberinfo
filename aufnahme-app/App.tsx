@@ -1,13 +1,14 @@
 import { useKeepAwake } from "expo-keep-awake";
 import { StatusBar } from "expo-status-bar";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { DiscoveryFeed } from "./src/components/DiscoveryFeed";
 import { GlassButton } from "./src/components/GlassButton";
+import { NoteTable } from "./src/components/NoteTable";
 import { SettingsModal } from "./src/components/SettingsModal";
 import { SystemClock } from "./src/components/SystemClock";
 import { useAufnahmeSession } from "./src/hooks/useAufnahmeSession";
+import { buildNoteTableRows } from "./src/services/discoveries";
 import { colors } from "./src/theme/config";
 
 function KeepAwakeOn() {
@@ -20,7 +21,8 @@ export default function App() {
   const {
     status,
     title,
-    discoveries,
+    noteMarkdown,
+    focusFields,
     error,
     busy,
     keyConfigured,
@@ -34,7 +36,7 @@ export default function App() {
 
   const statusLabel =
     status === "recording"
-      ? "Aufnahme läuft"
+      ? "Aufnahme läuft · live"
       : status === "paused"
         ? "Pausiert"
         : status === "stopped"
@@ -42,6 +44,8 @@ export default function App() {
           : null;
 
   const showTitle = Boolean(title && title !== "Aufnahme");
+  const rows = useMemo(() => buildNoteTableRows(noteMarkdown), [noteMarkdown]);
+  const showTable = status !== "idle" || Boolean(noteMarkdown.trim());
 
   return (
     <SafeAreaProvider>
@@ -50,15 +54,7 @@ export default function App() {
         {(status === "recording" || status === "paused") && <KeepAwakeOn />}
         <View style={styles.screen}>
           <View style={styles.topRow}>
-            <View style={{ width: 72 }} />
             <SystemClock />
-            <Pressable
-              onPress={() => setSettingsOpen(true)}
-              accessibilityRole="button"
-              style={styles.settingsBtn}
-            >
-              <Text style={styles.settingsText}>Einst.</Text>
-            </Pressable>
           </View>
 
           <View style={styles.header}>
@@ -73,8 +69,16 @@ export default function App() {
             ) : null}
           </View>
 
-          <View style={styles.feed}>
-            <DiscoveryFeed items={discoveries} />
+          <View style={styles.table}>
+            {showTable ? (
+              <NoteTable rows={rows} focusFields={focusFields} />
+            ) : (
+              <View style={styles.placeholder}>
+                <Text style={styles.placeholderText}>
+                  Nach dem Start erscheinen die Felder live.
+                </Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.controls}>
@@ -91,6 +95,13 @@ export default function App() {
               disabled={busy || status === "idle" || status === "stopped"}
               tone="danger"
             />
+            <Pressable
+              onPress={() => setSettingsOpen(true)}
+              accessibilityRole="button"
+              style={styles.settingsLink}
+            >
+              <Text style={styles.settingsText}>Einstellungen</Text>
+            </Pressable>
           </View>
 
           {error ? <Text style={styles.error}>{error}</Text> : <View style={styles.errorSpacer} />}
@@ -116,37 +127,27 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
   topRow: {
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-  },
-  settingsBtn: {
-    width: 72,
-    alignItems: "flex-end",
-    paddingVertical: 8,
-  },
-  settingsText: {
-    color: colors.subtle,
-    fontSize: 14,
+    justifyContent: "center",
   },
   header: {
     alignItems: "center",
-    gap: 6,
-    paddingTop: 4,
-    paddingBottom: 12,
+    gap: 4,
+    paddingTop: 2,
+    paddingBottom: 8,
   },
   status: {
     color: colors.subtle,
-    fontSize: 14,
+    fontSize: 13,
     letterSpacing: 1,
     textTransform: "uppercase",
   },
   noteTitle: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 16,
+    color: "rgba(180,180,180,0.95)",
+    fontSize: 15,
   },
   keyHint: {
     color: colors.danger,
@@ -154,25 +155,45 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: "center",
   },
-  feed: {
+  table: {
     flex: 1,
-    minHeight: 120,
+    minHeight: 160,
+  },
+  placeholder: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  placeholderText: {
+    color: "rgba(110,110,110,0.95)",
+    fontSize: 14,
+    textAlign: "center",
   },
   controls: {
     alignItems: "center",
-    paddingBottom: 12,
+    paddingBottom: 8,
     paddingTop: 8,
   },
   gap: {
-    height: 14,
+    height: 12,
+  },
+  settingsLink: {
+    marginTop: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  settingsText: {
+    color: "rgba(130,130,130,0.95)",
+    fontSize: 13,
   },
   error: {
     color: colors.danger,
     textAlign: "center",
-    marginBottom: 18,
-    fontSize: 13,
+    marginBottom: 14,
+    fontSize: 12,
   },
   errorSpacer: {
-    height: 34,
+    height: 28,
   },
 });
