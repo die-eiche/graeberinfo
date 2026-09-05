@@ -6,7 +6,6 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { GlassButton } from "./src/components/GlassButton";
 import { NoteTable } from "./src/components/NoteTable";
 import { SettingsModal } from "./src/components/SettingsModal";
-import { SystemClock } from "./src/components/SystemClock";
 import { useAufnahmeSession } from "./src/hooks/useAufnahmeSession";
 import { buildNoteTableRows } from "./src/services/discoveries";
 import { colors } from "./src/theme/config";
@@ -53,10 +52,6 @@ export default function App() {
         <StatusBar style="light" />
         {(status === "recording" || status === "paused") && <KeepAwakeOn />}
         <View style={styles.screen}>
-          <View style={styles.topRow}>
-            <SystemClock />
-          </View>
-
           <View style={styles.header}>
             {statusLabel ? <Text style={styles.status}>{statusLabel}</Text> : null}
             {showTitle ? (
@@ -128,10 +123,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
     paddingHorizontal: 20,
-  },
-  topRow: {
-    alignItems: "center",
-    justifyContent: "center",
   },
   header: {
     alignItems: "center",
