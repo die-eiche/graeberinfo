@@ -69,6 +69,36 @@ function looksLikeRelationship(value: string): boolean {
   return RELATIONSHIP_WORDS.has(fold(value));
 }
 
+const NON_PERSON_NAME_WORDS = new Set(
+  [
+    "vorgestern",
+    "gestern",
+    "heute",
+    "morgen",
+    "uebermorgen",
+    "ubermorgen",
+    "verstorben",
+    "gestorben",
+    "verstorbene",
+    "verstorbener",
+    "verstorbenes",
+    "todestag",
+    "bestatter",
+    "bestatterin",
+    "mieter",
+    "mieterin",
+    "grab",
+    "urne",
+  ].map((w) => fold(w))
+);
+
+function looksLikeNonPersonName(value: string): boolean {
+  const parts = fold(value).split(/\s+/).filter(Boolean);
+  if (!parts.length) return true;
+  if (NON_PERSON_NAME_WORDS.has(parts.join(" "))) return true;
+  return parts.every((p) => NON_PERSON_NAME_WORDS.has(p));
+}
+
 function splitPersonName(full: string): { first: string; last: string } {
   const parts = normalizePersonName(full).split(/\s+/).filter(Boolean);
   if (parts.length === 0) return { first: "", last: "" };
@@ -107,7 +137,7 @@ export function extractUndertakerFromTranscript(transcript: string): string | nu
     const match = pattern.exec(text);
     if (!match?.[1]) continue;
     const name = normalizePersonName(match[1]);
-    if (!name || looksLikeRelationship(name) || stop.test(name)) continue;
+    if (!name || looksLikeRelationship(name) || looksLikeNonPersonName(name) || stop.test(name)) continue;
     return name;
   }
   return null;
@@ -142,42 +172,39 @@ export function extractTenantNameFromTranscript(transcript: string): string | nu
       ).exec(text);
       if (explicit?.[1]) {
         const name = normalizePersonName(explicit[1]);
-        if (name && !looksLikeRelationship(name)) return name;
+        if (name && !looksLikeRelationship(name) && !looksLikeNonPersonName(name)) return name;
       }
       continue;
     }
     if (!match?.[1]) continue;
     const name = normalizePersonName(match[1]);
-    if (!name || looksLikeRelationship(name)) continue;
+    if (!name || looksLikeRelationship(name) || looksLikeNonPersonName(name)) continue;
     return name;
   }
   return null;
 }
 
-/** Verstorbenennamen aus klaren Transkript-Formeln. */
+/** Verstorbenennamen aus klaren Transkript-Formeln (keine Datums-/Statuswörter). */
 export function extractDeceasedNameFromTranscript(transcript: string): string | null {
   const text = transcript.replace(/\s+/g, " ").trim();
   if (!text) return null;
 
   const patterns = [
+    // „Verstorbene heißt Anna Berger“ – nicht „ist vorgestern verstorben“
     new RegExp(
-      `\\bVerstorbene[rn]?\\s+(?:heißt|ist|war|namens|name(?:ns)?)\\s+${NAME_TOKEN}`,
+      `\\bVerstorbene[rn]?\\s+(?:heißt|namens|name(?:ns)?)\\s+${NAME_TOKEN}`,
       "i"
     ),
     new RegExp(
-      `\\b(?:die|der)\\s+Verstorbene[rn]?\\s+(?:heißt|ist|war)\\s+${NAME_TOKEN}`,
+      `\\b(?:die|der)\\s+Verstorbene[rn]?\\s+(?:heißt|namens|name(?:ns)?)\\s+${NAME_TOKEN}`,
       "i"
     ),
     new RegExp(
-      `\\b(?:mein(?:e)?|unser(?:e)?)\\s+(Vater|Mutter|Mann|Frau|Sohn|Tochter|Bruder|Schwester)\\s+${NAME_TOKEN}\\s+(?:ist\\s+)?(?:gestorben|verstorben)\\b`,
+      `\\b(?:mein(?:e)?|unser(?:e)?)\\s+(?:Vater|Mutter|Mann|Frau|Sohn|Tochter|Bruder|Schwester)\\s+${NAME_TOKEN}\\s+(?:ist\\s+)?(?:gestorben|verstorben)\\b`,
       "i"
     ),
     new RegExp(
-      `\\b(?:mein(?:e)?|unser(?:e)?)\\s+(Vater|Mutter|Mann|Frau|Sohn|Tochter|Bruder|Schwester)\\s+(?:ist\\s+)?(?:gestorben|verstorben)\\b[^.!?]{0,30}?\\b(?:heißt|namens)\\s+${NAME_TOKEN}`,
-      "i"
-    ),
-    new RegExp(
-      `\\b${NAME_TOKEN}\\s+(?:ist\\s+)?(?:vorgestern|gestern|heute)?\\s*(?:gestorben|verstorben)\\b`,
+      `\\b(?:mein(?:e)?|unser(?:e)?)\\s+(?:Vater|Mutter|Mann|Frau|Sohn|Tochter|Bruder|Schwester)\\s+(?:ist\\s+)?(?:gestorben|verstorben)\\b[^.!?]{0,40}?\\b(?:heißt|namens)\\s+${NAME_TOKEN}`,
       "i"
     ),
   ];
@@ -185,19 +212,17 @@ export function extractDeceasedNameFromTranscript(transcript: string): string | 
   for (const pattern of patterns) {
     const match = pattern.exec(text);
     if (!match) continue;
-    // Letzte Capture-Gruppe ist der Name (Beziehungswort ggf. davor)
     const groups = match.slice(1).filter(Boolean);
     const nameRaw = groups[groups.length - 1];
     if (!nameRaw) continue;
-    if (looksLikeRelationship(nameRaw)) continue;
     const name = normalizePersonName(nameRaw);
-    if (!name || looksLikeRelationship(name)) continue;
-    // „ist gestorben“ ohne Namen nicht nehmen
-    if (/^(ist|war|wurde)$/i.test(name)) continue;
+    if (!name || looksLikeRelationship(name) || looksLikeNonPersonName(name)) continue;
+    if (/^(ist|war|wurde|der|die|das)$/i.test(name)) continue;
     return name;
   }
   return null;
 }
+
 
 function applySplitName(
   next: Record<string, string>,

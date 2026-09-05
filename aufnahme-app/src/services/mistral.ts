@@ -1,13 +1,8 @@
 import { File, Paths, UploadType } from "expo-file-system";
-import { applyAllowedValueRules } from "./allowedValues";
 import { getApiKey } from "./apiKey";
-import { emptyNoteMarkdown, mergeNoteMarkdown, renderNoteMarkdown, titleFromMieter } from "./noteMerge";
-import { enrichNoteDates } from "./dateEnrichment";
-import { rescueMisplacedFields } from "./fieldRescue";
-import { clearUngroundedFields } from "./fieldGrounding";
-import { applySameAddressFromTenant } from "./addressInference";
-import { enrichNotePostalCodes } from "./postalCode";
+import { emptyNoteMarkdown, renderNoteMarkdown, titleFromMieter } from "./noteMerge";
 import { parseNoteFields } from "./discoveries";
+import { normalizeExistingNote, runNotePipeline } from "./notePipeline";
 import { getSystemPrompt } from "./systemPrompt";
 import {
   appendTranscriptChunk,
@@ -37,22 +32,20 @@ function snapshotFromMarkdown(markdown: string): NoteSnapshot {
   };
 }
 
-/** Segment normalisieren, mergen, Daten/Adresse/PLZ anreichern, Titel aus Mieter ableiten. */
+/**
+ * Einziger Commit-Pfad: Modell-Extrakt → Validate/Normalize-Pipeline → Notiz.
+ * Keine Ad-hoc-Nachbearbeitung außerhalb von notePipeline.
+ */
 async function finalizeNote(
   raw: string,
   transcript: string,
   previousNote: string
 ): Promise<NoteSnapshot> {
-  const segmentNormalized = applyAllowedValueRules(raw, transcript);
-  let merged = mergeNoteMarkdown(previousNote || EMPTY_NOTE, segmentNormalized);
-  let fields = parseNoteFields(merged);
-  fields = enrichNoteDates(fields, new Date(), transcript);
-  fields = rescueMisplacedFields(fields, transcript);
-  fields = clearUngroundedFields(fields, transcript);
-  fields = applySameAddressFromTenant(fields, transcript);
-  merged = renderNoteMarkdown(fields);
-  const withPlz = await enrichNotePostalCodes(merged);
-  return snapshotFromMarkdown(withPlz);
+  return runNotePipeline({
+    rawMarkdown: raw,
+    transcript,
+    previousNote: previousNote || EMPTY_NOTE,
+  });
 }
 
 async function requireKey(): Promise<string> {
@@ -126,6 +119,7 @@ export async function extractFromTranscript(
     "Verwandtschaftsverhältnis nur echte Beziehungswörter (Sohn, Tochter, Ehefrau, …).",
     "Relativdaten: vorgestern/gestern/heute anhand „Heute …“ als konkretes TT.MM.JJJJ in Verstorbener Todestag.",
     "Todestag und TF-Wunschtermin: wenn nur Tag/Monat ohne Jahr → Tag.Monat. ohne Jahr schreiben (Jahr ergänzt die App).",
+    "Nur extrahieren, nicht normalisieren: Relativdaten/Straße/PLZ/Rollen korrigiert die App-Pipeline.",
     "Nur explizit Gesagtes – keine erfundenen Namen/Grab/Urne. ? nur wenn das Feld wirklich angesprochen und unklar ist.",
     "Relativtermine: übernächsten Sonntag / „also den 13.“ anhand Heute als konkretes TT.MM.JJJJ in TF-Wunschtermin.",
     "Gib Titel + vollständige Tabelle aus.",
@@ -262,12 +256,7 @@ export async function reviewNoteFromFullTranscript(
 ): Promise<NoteSnapshot> {
   const fullTranscript = buildFullTranscript(transcriptChunks);
   if (!fullTranscript.trim()) {
-    // trotzdem Datums-/Adress-Nachbearbeitung
-    let fields = parseNoteFields(currentNote || EMPTY_NOTE);
-    fields = enrichNoteDates(fields, new Date(), "");
-    let merged = renderNoteMarkdown(fields);
-    merged = await enrichNotePostalCodes(merged);
-    return snapshotFromMarkdown(merged);
+    return normalizeExistingNote(currentNote || EMPTY_NOTE, "");
   }
 
   const apiKey = await requireKey();
@@ -290,6 +279,7 @@ export async function reviewNoteFromFullTranscript(
     "Verwandtschaftsverhältnis nur echte Beziehungswörter (Sohn, Tochter, Ehefrau, …).",
     "Relativdaten: vorgestern/gestern/heute anhand „Heute …“ als konkretes TT.MM.JJJJ in Verstorbener Todestag (falsche Kalenderdaten überschreiben).",
     "Todestag / TF-Wunschtermin ohne Jahr: nur Tag.Monat. schreiben (Jahr ergänzt die App).",
+    "Nur extrahieren, nicht normalisieren: Relativdaten/Straße/PLZ/Rollen korrigiert die App-Pipeline.",
     "Nur explizit Gesagtes – keine erfundenen Namen/Grab/Urne. ? nur wenn das Feld wirklich angesprochen und unklar ist.",
     "Relativtermine: übernächsten Sonntag / „also den 13.“ anhand Heute als konkretes TT.MM.JJJJ in TF-Wunschtermin.",
     "Gib Titel + vollständige Tabelle mit dem korrigierten Gesamtstand aus.",
