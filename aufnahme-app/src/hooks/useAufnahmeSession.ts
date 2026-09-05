@@ -1,4 +1,9 @@
-import { Audio } from "expo-av";
+import {
+  AudioModule,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+} from "expo-audio";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Platform, type AppStateStatus } from "react-native";
 import { sendAudioSegment, startSession, stopSession } from "../services/api";
@@ -23,7 +28,7 @@ export function useAufnahmeSession() {
   const [keyConfigured, setKeyConfigured] = useState(false);
 
   const sessionIdRef = useRef<string | null>(null);
-  const recordingRef = useRef<Audio.Recording | null>(null);
+  const recorderRef = useRef<InstanceType<typeof AudioModule.AudioRecorder> | null>(null);
   const notePathRef = useRef<string | null>(null);
   const statusRef = useRef<SessionStatus>("idle");
   const interruptedRef = useRef(false);
@@ -77,12 +82,12 @@ export function useAufnahmeSession() {
   }, []);
 
   const stopRecorder = useCallback(async (): Promise<string | null> => {
-    const recording = recordingRef.current;
-    recordingRef.current = null;
-    if (!recording) return null;
+    const recorder = recorderRef.current;
+    recorderRef.current = null;
+    if (!recorder) return null;
     try {
-      await recording.stopAndUnloadAsync();
-      return recording.getURI();
+      await recorder.stop();
+      return recorder.uri;
     } catch {
       return null;
     }
@@ -113,22 +118,22 @@ export function useAufnahmeSession() {
   );
 
   const beginRecording = useCallback(async () => {
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: true,
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: true,
+    await setAudioModeAsync({
+      allowsRecording: true,
+      playsInSilentMode: true,
+      allowsBackgroundRecording: true,
     });
 
-    const permission = await Audio.requestPermissionsAsync();
+    const permission = await requestRecordingPermissionsAsync();
     if (!permission.granted) {
       setError("Mikrofon-Berechtigung fehlt.");
       return false;
     }
 
-    const recording = new Audio.Recording();
-    await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-    await recording.startAsync();
-    recordingRef.current = recording;
+    const recorder = new AudioModule.AudioRecorder(RecordingPresets.HIGH_QUALITY);
+    await recorder.prepareToRecordAsync();
+    recorder.record();
+    recorderRef.current = recorder;
     return true;
   }, []);
 

@@ -40,9 +40,11 @@
     },
     "plugins": [
       [
-        "expo-av",
+        "expo-audio",
         {
-          "microphonePermission": "Die App nimmt Beratungsgespräche zur extrahierten Datenerfassung auf."
+          "microphonePermission": "Die App nimmt Beratungsgespräche zur extrahierten Datenerfassung auf.",
+          "recordAudioAndroid": true,
+          "enableBackgroundRecording": true
         }
       ],
       "expo-secure-store"
