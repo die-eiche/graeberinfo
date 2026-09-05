@@ -112,8 +112,8 @@ Du **extrahierst** nur explizit Gesagtes in die Schema-Felder. Keine Jahresergä
 - Nachname
 - Straße
 - PLZ Ort
-- Geburtstag
-- Todestag → Relativangaben (vorgestern/gestern/heute/morgen) anhand des mitgelieferten „Heute“-Datums als konkretes \`TT.MM.JJJJ\` ausgeben; bei nur Tag/Monat ohne Jahr: \`TT.MM.\` (Jahr ergänzt die App)
+- Geburtstag → nur \`TT.MM.JJJJ\` (kein ISO \`JJJJ-MM-TT\`; unbekannter Tag als \`00.MM.JJJJ\`)
+- Todestag → Relativangaben (vorgestern/gestern/heute/morgen) anhand des mitgelieferten „Heute“-Datums als konkretes \`TT.MM.JJJJ\` ausgeben; bei nur Tag/Monat ohne Jahr: \`TT.MM.\` (Jahr ergänzt die App); immer deutsches Format \`TT.MM.JJJJ\`, niemals \`JJJJ-MM-TT\`
 - Bei Vorsorge/Selbstbuchung: alle diese Felder leer
 
 ### Sonstiges

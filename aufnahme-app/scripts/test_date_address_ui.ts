@@ -31,6 +31,12 @@ assert(enrichPartialDate("15.03.", now) === "15.03.2026", "Tag.Monat. → aktuel
 assert(enrichPartialDate("15. März", now) === "15.03.2026", "Tag Monat → aktuelles Jahr");
 assert(resolveRelativeDateToken("vorgestern", now) === "03.09.2026", "vorgestern → 03.09.2026");
 assert(enrichPartialDate("vorgestern", now) === "03.09.2026", "Feldwert vorgestern aufgelöst");
+assert(enrichPartialDate("1934-10-00", now) === "00.10.1934", "ISO mit Tag 00 → TT.MM.JJJJ");
+assert(enrichPartialDate("1934-10-15", now) === "15.10.1934", "ISO-Datum → deutsches Format");
+assert(enrichPartialDate("2026-09-03", now) === "03.09.2026", "ISO Todestag → TT.MM.JJJJ");
+const birthday = enrichNoteDates({ "Verstorbener Geburtstag": "1934-10-00" }, now);
+assert(birthday["Verstorbener Geburtstag"] === "00.10.1934", "Geburtstag in Notiz vereinheitlicht");
+
 
 const nearNewYear = new Date("2026-12-20T12:00:00");
 assert(resolveImpliedYear(1, 10, nearNewYear) >= 2026, "Jahreswechsel: Jan-Datum aus Dez");

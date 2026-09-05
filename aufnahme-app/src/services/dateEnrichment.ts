@@ -94,10 +94,18 @@ function normalizeMonthToken(token: string): number | null {
 }
 
 /**
- * Reichert Todestag / TF-Wunschtermin an:
- * - nur Jahr → bleibt Jahr (oder wird als Jahr behalten)
- * - Tag+Monat ohne Jahr → Jahr ergänzen
- * - nur Monat+Jahr etc. unverändert lassen wenn unklar
+ * Einheitliches Anzeige-/Speicherformat: TT.MM.JJJJ
+ * (unbekannter Tag als 00, z. B. 00.10.1934).
+ */
+export function toGermanDateFormat(day: number, month: number, year: number): string {
+  return `${pad2(day)}.${pad2(month)}.${year}`;
+}
+
+/**
+ * Wandelt ISO/Teilangaben ins einheitliche deutsche Datumsformat.
+ * - nur Jahr → bleibt Jahr
+ * - Tag+Monat ohne Jahr → Jahr ergänzen → TT.MM.JJJJ
+ * - JJJJ-MM-TT / JJJJ-MM-00 → TT.MM.JJJJ (00 = Tag unbekannt)
  */
 export function enrichPartialDate(raw: string, now = new Date()): string {
   const trimmed = raw.trim();
@@ -106,12 +114,34 @@ export function enrichPartialDate(raw: string, now = new Date()): string {
   const relative = resolveRelativeDateToken(trimmed, now);
   if (relative) return relative;
 
-  // schon volles Datum TT.MM.JJJJ oder JJJJ-MM-TT
+  // schon deutsches Datum TT.MM.JJJJ (Tag darf 00 sein)
   if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(trimmed)) {
     const [d, m, y] = trimmed.split(".").map(Number);
-    return `${pad2(d)}.${pad2(m)}.${y}`;
+    if (m >= 1 && m <= 12 && d >= 0 && d <= 31) {
+      return toGermanDateFormat(d, m, y);
+    }
   }
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+  // ISO JJJJ-MM-TT (auch Tag 00 = unbekannt)
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (iso) {
+    const year = Number(iso[1]);
+    const month = Number(iso[2]);
+    const day = Number(iso[3]);
+    if (month >= 1 && month <= 12 && day >= 0 && day <= 31) {
+      return toGermanDateFormat(day, month, year);
+    }
+  }
+
+  // ISO ohne Tag: JJJJ-MM
+  const isoYm = /^(\d{4})-(\d{2})$/.exec(trimmed);
+  if (isoYm) {
+    const year = Number(isoYm[1]);
+    const month = Number(isoYm[2]);
+    if (month >= 1 && month <= 12) {
+      return toGermanDateFormat(0, month, year);
+    }
+  }
 
   // nur Jahr
   if (/^\d{4}$/.test(trimmed)) {
@@ -125,22 +155,29 @@ export function enrichPartialDate(raw: string, now = new Date()): string {
     const month = Number(dm[2]);
     if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
       const year = resolveImpliedYear(month, day, now);
-      return `${pad2(day)}.${pad2(month)}.${year}`;
+      return toGermanDateFormat(day, month, year);
     }
   }
 
-  // "15. März" / "15 März" / "15. März  " ohne Jahr
+  // "15. März" / "15 März" ohne/mit Jahr
   const named = /^(\d{1,2})\.?\s+([A-Za-zÄÖÜäöü.]+)(?:\s+(\d{4}))?$/.exec(trimmed);
   if (named) {
     const day = Number(named[1]);
     const month = normalizeMonthToken(named[2]);
     if (month && day >= 1 && day <= 31) {
       const year = named[3] ? Number(named[3]) : resolveImpliedYear(month, day, now);
-      return `${pad2(day)}.${pad2(month)}.${year}`;
+      return toGermanDateFormat(day, month, year);
     }
   }
 
-  // "März 2026" → unvollständig für Tag, unverändert
+  // "März 2026" / "Oktober 1934" → Tag unbekannt → 00.MM.JJJJ
+  const monthYear = /^([A-Za-zÄÖÜäöü.]+)\s+(\d{4})$/.exec(trimmed);
+  if (monthYear) {
+    const month = normalizeMonthToken(monthYear[1]);
+    const year = Number(monthYear[2]);
+    if (month) return toGermanDateFormat(0, month, year);
+  }
+
   return trimmed;
 }
 
@@ -340,7 +377,11 @@ export function applyRelativeTfDateFromTranscript(
 }
 
 
-const DATE_FIELDS = ["Verstorbener Todestag", "TF-Wunschtermin"] as const;
+const DATE_FIELDS = [
+  "Verstorbener Geburtstag",
+  "Verstorbener Todestag",
+  "TF-Wunschtermin",
+] as const;
 
 /** Wendet Jahres-/Datums-Ergänzung auf Notizfelder an. */
 export function enrichNoteDates(
