@@ -1,5 +1,5 @@
 /**
- * Schnelltests für Merge, Grab- und PLZ-Logik (ohne Jest).
+ * Schnelltests für Merge, Grab-, PLZ- und Rollen-Logik (ohne Jest).
  * Ausführen: cd aufnahme-app && npx --yes tsx scripts/test_note_logic.ts
  */
 import {
@@ -21,7 +21,14 @@ import {
   normalizeStreetForLookup,
   parsePlzOrt,
   resolveLocalityNamesFromOpenPlz,
+  resolveStreetFromOpenPlz,
+  streetSimilarity,
 } from "../src/services/postalCode";
+import {
+  extractDeceasedNameFromTranscript,
+  extractUndertakerFromTranscript,
+  rescueMisplacedFields,
+} from "../src/services/fieldRescue";
 
 let failed = 0;
 
@@ -81,8 +88,8 @@ async function main() {
   assert(corrFields["Mieter Telefon 1"] === "0452123456", "Telefon-Korrektur überschreibt");
   assert(corrFields["Mieter E-Mail"] === "neu@example.com", "E-Mail-Korrektur überschreibt");
   assert(corrFields["Mieter Überweisung oder SEPA"] === "SEPA", "Zahlungsart-Korrektur überschreibt");
-  assert(corrFields["Bestatter"] === "Schäfer", "Bestatter-Korrektur überschreibt");
-  assert(corrFields["Grab"] === "2.02.02.02", "Grab-Korrektur überschreibt");
+  assert(corrFields.Bestatter === "Schäfer", "Bestatter-Korrektur überschreibt");
+  assert(corrFields.Grab === "2.02.02.02", "Grab-Korrektur überschreibt");
 
   assert(normalizeGraveValue("9.99.99.99") === UNCERTAIN_MARK, "ungültige Grabnummer → ?");
   assert(normalizeGraveValue("1.01.01.01") === "1.01.01.01", "gültige Grabnummer bleibt");
@@ -110,7 +117,7 @@ async function main() {
   );
 
   const withGrave = applyAllowedValueRules(emptyNoteMarkdown(), "Die Grabnummer ist 8.88.88.88");
-  assert(parseNoteFields(withGrave)["Grab"] === UNCERTAIN_MARK, "KI leer + Transkript ungültig → Grab=?");
+  assert(parseNoteFields(withGrave).Grab === UNCERTAIN_MARK, "KI leer + Transkript ungültig → Grab=?");
   const grabRow = buildNoteTableRows(withGrave).find((r) => r.field === "Grab");
   assert(grabRow?.uncertain === true, "Grab-Zeile uncertain für roten Punkt");
   assert(grabRow?.value === "", "Grab-Wert leer, Unsicherheit nur als Punkt");
@@ -125,12 +132,8 @@ async function main() {
       "Mieter PLZ Ort": "Eutin",
     })
   );
-  assert(
-    parseNoteFields(enriched)["Mieter PLZ Ort"] === "23701 Eutin",
-    "PLZ aus Straße+Ort ermittelt"
-  );
+  assert(parseNoteFields(enriched)["Mieter PLZ Ort"] === "23701 Eutin", "PLZ aus Straße+Ort ermittelt");
 
-  // falsche PLZ korrigieren
   const fixed = await enrichNotePostalCodes(
     noteWith({
       "Mieter Straße": "Bahnhofstraße 12",
@@ -148,7 +151,6 @@ async function main() {
     "OpenPLZ kennt Ort Eutin"
   );
 
-  // Ort mit Präposition / unscharfer Form + Straße → PLZ nachziehen
   const softOrt = await enrichNotePostalCodes(
     noteWith({
       "Mieter Straße": "Bahnhofstraße 12",
@@ -160,6 +162,44 @@ async function main() {
     "PLZ aus Straße + unscharfem Ort via OpenPLZ"
   );
 
+  assert(streetSimilarity("Untertrafe", "An der Untertrave") >= 0.85, "ASR-Ähnlichkeit Untertrafe/Untertrave");
+  const streetHit = await resolveStreetFromOpenPlz("Untertrafe", "Lübeck");
+  assert(streetHit?.name === "An der Untertrave", "OpenPLZ: Untertrafe → An der Untertrave");
+  const streetFixed = await enrichNotePostalCodes(
+    noteWith({
+      "Mieter Straße": "Untertrafe 7",
+      "Mieter PLZ Ort": "Lübeck",
+    })
+  );
+  const streetFields = parseNoteFields(streetFixed);
+  assert(streetFields["Mieter Straße"] === "An der Untertrave 7", "Straße kanonisch korrigiert");
+  assert(streetFields["Mieter PLZ Ort"].startsWith("23552"), "PLZ zu An der Untertrave gesetzt");
+
+  assert(extractUndertakerFromTranscript("Bestatter Söhnlein") === "Söhnlein", "Bestatter aus Transkript");
+  assert(
+    extractDeceasedNameFromTranscript("Die Verstorbene heißt Anna Berger und ist vorgestern gestorben.") ===
+      "Anna Berger",
+    "Verstorbene aus Transkript"
+  );
+  const rescuedNames = rescueMisplacedFields(
+    {
+      "Mieter Vorname": "Anna",
+      "Mieter Nachname": "Berger",
+      "Verstorbener Vorname": "",
+      Bestatter: "",
+      "Mieter Verwandtschaftsverhältnis zum Verstorbenen": "Söhnlein",
+    },
+    "Die Verstorbene heißt Anna Berger. Bestatter Söhnlein. Der Mieter ist Thomas Berger."
+  );
+  assert(rescuedNames["Verstorbener Vorname"] === "Anna", "Verstorbene Vorname gesetzt");
+  assert(rescuedNames["Verstorbener Nachname"] === "Berger", "Verstorbene Nachname gesetzt");
+  assert(rescuedNames.Bestatter === "Söhnlein", "Bestatter gerettet");
+  assert(rescuedNames["Mieter Vorname"] === "Thomas", "Mieter Vorname aus Transkript");
+  assert(rescuedNames["Mieter Nachname"] === "Berger", "Mieter Nachname aus Transkript");
+  assert(
+    !rescuedNames["Mieter Verwandtschaftsverhältnis zum Verstorbenen"],
+    "Bestatter nicht in Verwandtschaft"
+  );
 
   if (failed > 0) {
     console.error(`\n${failed} Test(s) fehlgeschlagen`);

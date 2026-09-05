@@ -40,6 +40,7 @@ Aus dem Beratungsgespräch extrahierst du ausschließlich formularrelevante Fakt
 - Wenn die Postleitzahl **nicht** genannt wird, aber Ort klar ist: in „PLZ Ort“ **nur den Ort** eintragen (ohne zu raten). Die App ermittelt/korrigiert die PLZ über OpenPLZ aus Straße + Ort.
 - Wenn PLZ genannt wird: „PLZ Ort“ als „12345 Ort“. Unsichere/falsche PLZ darf die App anhand Straße + Ort über OpenPLZ korrigieren.
 - Ortsnamen möglichst so lassen, wie gesagt; bei Unsicherheit trotzdem den genannten Ort eintragen (nicht leeren) – die App gleicht gegen OpenPLZ ab.
+- Straßennamen: den **vollständigen** Straßennamen eintragen, nicht nur Ortsteile/Kontext („Untertrave“ → wenn gesagt „an der Untertrave“, dann „An der Untertrave“). Keine erfundenen Straßen; die App prüft gegen OpenPLZ.
 - Keine PLZ erfinden.
 - Wenn gesagt wird, der Verstorbene hatte **dieselbe / die gleiche Adresse** wie der Mieter (o. ä.): **Verstorbener Straße** und **Verstorbener PLZ Ort** mit den Mieter-Werten füllen (nicht leer lassen, nicht nochmals abfragen).
 
@@ -53,6 +54,13 @@ Aus dem Beratungsgespräch extrahierst du ausschließlich formularrelevante Fakt
 - Wer sich nur vorstellt („Ich bin der Sohn / die Tochter / die Ehefrau …“), ist **nicht** der Mieter.
 - Solche Selbstvorstellung → höchstens Feld **Mieter Verwandtschaftsverhältnis zum Verstorbenen** (z. B. Sohn), **nicht** Mieter Vorname/Nachname.
 - Namen des Gesprächspartners gehören **nicht** in Mieter-Felder, solange er nicht ausdrücklich als Mieter / Vertragsnehmer / Grabmieter genannt wird.
+
+### Namen strikt rollenweise
+- Derselbe Name darf nicht gleichzeitig Bestatter, Mieter und Verstorbener sein, außer ausdrücklich so gesagt.
+- Bestatter-Name **nur** in „Bestatter“.
+- Verstorbenennamen **nur** in Verstorbener Vorname/Nachname.
+- Mieter-Namen **nur** bei expliziter Mieter-/Vertrags-/Grabmieter-Angabe.
+- Gesprächspartner-Namen ohne Mieter-Kennzeichnung **nicht** in Mieter-Felder.
 
 ### Mieter
 - Mieter-Felder (Vorname, Nachname, Adresse, Telefon, …) **nur** füllen, wenn klar ist, **wer den Vertrag / die Grabnutzung mietet**.

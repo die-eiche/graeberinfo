@@ -31,7 +31,7 @@ export function parsePlzOrt(value: string): { plz: string; ort: string } {
   return { plz: "", ort: trimmed };
 }
 
-/** Vergleichsschlüssel für Ortsnamen (Kleinbuchstaben, ohne Diakritika). */
+/** Vergleichsschlüssel für Orts-/Straßennamen. */
 export function foldPlaceName(value: string): string {
   return value
     .trim()
@@ -56,19 +56,114 @@ export function normalizeLocalityQuery(ort: string): string {
   return s.replace(/\s+/g, " ").trim();
 }
 
+/** Trennt Hausnummer vom Straßennamen. */
+export function splitStreetAndHouseNumber(street: string): { name: string; house: string } {
+  const trimmed = street.trim();
+  if (!trimmed || trimmed === UNCERTAIN_MARK) return { name: "", house: "" };
+  const match = /^(.*?)(?:\s+(\d+[a-zA-Z]?(?:\s*[-–]\s*\d+[a-zA-Z]?)?))$/u.exec(trimmed);
+  if (!match) return { name: trimmed, house: "" };
+  return { name: match[1].trim(), house: match[2].trim() };
+}
+
 /** Hausnummer entfernen und „Straße“ → „str.“ für OpenPLZ. */
 export function normalizeStreetForLookup(street: string): string {
-  let s = street.trim();
-  if (!s || s === UNCERTAIN_MARK) return "";
-  // typische Hausnummer am Ende: 12, 12a, 12-14
-  s = s.replace(/\s+\d+[a-zA-Z]?(?:\s*[-–]\s*\d+[a-zA-Z]?)?$/u, "");
+  let s = splitStreetAndHouseNumber(street).name;
+  if (!s) return "";
   s = s.replace(/stra(?:ss|ß)e\b/giu, "str.");
   s = s.replace(/\bstr(?!\.)\b/giu, "str.");
   return s.trim().replace(/\s+/g, " ");
 }
 
+/**
+ * Kern eines Straßennamens ohne Präpositionen/Suffixe
+ * („An der Untertrave“ → „untertrave“).
+ */
+export function streetNameCore(street: string): string {
+  let s = foldPlaceName(normalizeStreetForLookup(street));
+  if (!s) return "";
+  s = s.replace(
+    /^(an|am|auf|im|in|bei|zu|zum|zur|unter|ueber|uber|hinter|vor|neben)\s+(der|dem|den|die)?\s*/u,
+    ""
+  );
+  s = s.replace(
+    /\b(str|strasse|allee|weg|platz|gasse|ring|damm|ufer|bruecke|brucke|promenade|chaussee)\b/gu,
+    " "
+  );
+  return s.replace(/\s+/g, "");
+}
+
 function escapeRegexLiteral(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 0; i < a.length; i++) {
+    const cur = [i + 1];
+    for (let j = 0; j < b.length; j++) {
+      const cost = a[i] === b[j] ? 0 : 1;
+      cur.push(Math.min(prev[j + 1] + 1, cur[j] + 1, prev[j] + cost));
+    }
+    for (let j = 0; j < prev.length; j++) prev[j] = cur[j];
+  }
+  return prev[b.length];
+}
+
+/** Ähnlichkeit 0..1 zwischen zwei Straßennamen (Kern + Vollstring). */
+export function streetSimilarity(a: string, b: string): number {
+  const fa = foldPlaceName(a);
+  const fb = foldPlaceName(b);
+  if (!fa || !fb) return 0;
+  if (fa === fb) return 1;
+
+  const ca = streetNameCore(a);
+  const cb = streetNameCore(b);
+  let best = 0;
+  if (ca && cb) {
+    const dist = levenshtein(ca, cb);
+    best = Math.max(best, 1 - dist / Math.max(ca.length, cb.length));
+    if (ca.includes(cb) || cb.includes(ca)) {
+      best = Math.max(best, Math.min(ca.length, cb.length) / Math.max(ca.length, cb.length));
+    }
+  }
+
+  const compactA = fa.replace(/\s+/g, "");
+  const compactB = fb.replace(/\s+/g, "");
+  const distFull = levenshtein(compactA, compactB);
+  best = Math.max(best, 1 - distFull / Math.max(compactA.length, compactB.length));
+  return best;
+}
+
+/** Typische ASR-Verwechslungen für Suchvarianten. */
+export function asrStreetVariants(core: string): string[] {
+  const base = core.toLowerCase();
+  if (!base) return [];
+  const out = new Set<string>([base]);
+  const swaps: Array<[string, string]> = [
+    ["f", "v"],
+    ["v", "f"],
+    ["p", "b"],
+    ["b", "p"],
+    ["d", "t"],
+    ["t", "d"],
+    ["k", "g"],
+    ["g", "k"],
+    ["m", "n"],
+    ["n", "m"],
+    ["ie", "i"],
+    ["i", "ie"],
+  ];
+  for (const [from, to] of swaps) {
+    if (!base.includes(from)) continue;
+    out.add(base.replace(from, to));
+  }
+  for (let len = Math.min(8, base.length); len >= 4; len--) {
+    out.add(base.slice(0, len));
+  }
+  return [...out];
 }
 
 function streetNameCandidates(streetNorm: string): string[] {
@@ -89,9 +184,7 @@ async function fetchStreets(name: string, localityPattern: string): Promise<Stre
   const response = await fetch(`${OPENPLZ_BASE}/Streets?${params.toString()}`, {
     headers: { Accept: "text/json" },
   });
-  if (!response.ok) {
-    return [];
-  }
+  if (!response.ok) return [];
   const data = (await response.json()) as StreetHit[];
   return Array.isArray(data) ? data : [];
 }
@@ -105,9 +198,7 @@ async function fetchLocalities(name: string): Promise<LocalityHit[]> {
   const response = await fetch(`${OPENPLZ_BASE}/Localities?${params.toString()}`, {
     headers: { Accept: "text/json" },
   });
-  if (!response.ok) {
-    return [];
-  }
+  if (!response.ok) return [];
   const data = (await response.json()) as LocalityHit[];
   return Array.isArray(data) ? data : [];
 }
@@ -125,7 +216,6 @@ export async function resolveLocalityNamesFromOpenPlz(ort: string): Promise<stri
 
   const foldedQuery = foldPlaceName(query);
   const ranked: Array<{ name: string; score: number }> = [];
-
   for (const hit of hits) {
     const foldedName = foldPlaceName(hit.name);
     let score = 0;
@@ -151,7 +241,7 @@ export async function resolveLocalityNamesFromOpenPlz(ort: string): Promise<stri
 function uniquePostalFromHits(
   hits: StreetHit[],
   preferredLocality?: string
-): { postalCode: string; locality: string } | null {
+): { postalCode: string; locality: string; streetName?: string } | null {
   if (hits.length === 0) return null;
   const plzSet = new Set(hits.map((h) => h.postalCode).filter(Boolean));
   if (plzSet.size !== 1) return null;
@@ -166,7 +256,12 @@ function uniquePostalFromHits(
     preferredLocality ||
     "";
 
-  return { postalCode, locality: localityName };
+  const streetNames = [...new Set(hits.map((h) => h.name).filter(Boolean))];
+  return {
+    postalCode,
+    locality: localityName,
+    streetName: streetNames.length === 1 ? streetNames[0] : undefined,
+  };
 }
 
 async function lookupStreetsForLocality(
@@ -181,53 +276,114 @@ async function lookupStreetsForLocality(
   return [];
 }
 
-/**
- * Ermittelt die eindeutige PLZ zu Straße + Ort über OpenPLZ.
- * Nutzt bei unscharfem Ortsnamen zuerst das OpenPLZ-Ortsverzeichnis.
- * Mehrere Treffer mit unterschiedlicher PLZ → null (nicht raten).
- */
-export async function lookupPostalCode(
+async function collectStreetHitsForLocality(
   street: string,
   locality: string
-): Promise<{ postalCode: string; locality: string } | null> {
+): Promise<StreetHit[]> {
+  const streetNorm = normalizeStreetForLookup(street);
+  if (!streetNorm) return [];
+  const exact = `^${escapeRegexLiteral(locality)}$`;
+  const byKey = new Map<string, StreetHit>();
+
+  const addHits = (hits: StreetHit[]) => {
+    for (const hit of hits) {
+      const key = `${hit.name}|${hit.postalCode}|${hit.locality}`;
+      if (!byKey.has(key)) byKey.set(key, hit);
+    }
+  };
+
+  addHits(await lookupStreetsForLocality(streetNorm, locality));
+
+  const core = streetNameCore(streetNorm);
+  const queries = new Set<string>([
+    ...streetNameCandidates(streetNorm),
+    ...asrStreetVariants(core),
+  ]);
+  for (const token of foldPlaceName(streetNorm).split(" ")) {
+    if (token.length >= 4) queries.add(token);
+  }
+
+  for (const q of queries) {
+    if (!q || q.length < 3) continue;
+    addHits(await fetchStreets(q, exact));
+  }
+
+  return [...byKey.values()];
+}
+
+/**
+ * Gleicht einen gesprochenen/ASR-Straßennamen hart gegen OpenPLZ ab.
+ * „Untertrafe“ in Lübeck → „An der Untertrave“, sonst null.
+ */
+export async function resolveStreetFromOpenPlz(
+  street: string,
+  locality: string
+): Promise<{ name: string; postalCode: string; locality: string; score: number } | null> {
   const ortRaw = locality.trim();
   const streetNorm = normalizeStreetForLookup(street);
   if (!ortRaw || !streetNorm) return null;
 
   const ortQuery = normalizeLocalityQuery(ortRaw) || ortRaw;
+  const localityNames = await resolveLocalityNamesFromOpenPlz(ortQuery);
+  const localities = localityNames.length > 0 ? localityNames : [ortQuery];
 
-  // 1) Direkter Versuch mit dem genannten Ort
+  const scored: Array<{ hit: StreetHit; score: number }> = [];
+  for (const loc of localities) {
+    const hits = await collectStreetHitsForLocality(streetNorm, loc);
+    for (const hit of hits) {
+      scored.push({ hit, score: streetSimilarity(streetNorm, hit.name) });
+    }
+  }
+
+  if (scored.length === 0) return null;
+  scored.sort((a, b) => b.score - a.score);
+
+  const best = scored[0];
+  const second = scored.find((row) => foldPlaceName(row.hit.name) !== foldPlaceName(best.hit.name));
+
+  if (best.score < 0.82) return null;
+  if (second && second.score >= best.score - 0.05 && best.score < 0.97) return null;
+
+  return {
+    name: best.hit.name,
+    postalCode: best.hit.postalCode,
+    locality: best.hit.locality,
+    score: best.score,
+  };
+}
+
+/**
+ * Ermittelt die eindeutige PLZ zu Straße + Ort über OpenPLZ.
+ * Nutzt bei unscharfem Orts-/Straßennamen OpenPLZ-Abgleich (inkl. ASR-Nähe).
+ */
+export async function lookupPostalCode(
+  street: string,
+  locality: string
+): Promise<{ postalCode: string; locality: string; streetName?: string } | null> {
+  const resolved = await resolveStreetFromOpenPlz(street, locality);
+  if (resolved) {
+    return {
+      postalCode: resolved.postalCode,
+      locality: resolved.locality,
+      streetName: resolved.name,
+    };
+  }
+
+  const ortRaw = locality.trim();
+  const streetNorm = normalizeStreetForLookup(street);
+  if (!ortRaw || !streetNorm) return null;
+  const ortQuery = normalizeLocalityQuery(ortRaw) || ortRaw;
+
   let hits = await lookupStreetsForLocality(streetNorm, ortQuery);
-  let resolved = uniquePostalFromHits(hits, ortQuery);
-  if (resolved) return resolved;
+  let exact = uniquePostalFromHits(hits, ortQuery);
+  if (exact) return exact;
 
-  // 2) Ort über OpenPLZ-Localities auflösen (Schreibweise / Stadtzusatz / ASR)
   const localityNames = await resolveLocalityNamesFromOpenPlz(ortQuery);
   for (const name of localityNames) {
-    if (foldPlaceName(name) === foldPlaceName(ortQuery) && hits.length > 0) {
-      continue;
-    }
     hits = await lookupStreetsForLocality(streetNorm, name);
-    resolved = uniquePostalFromHits(hits, name);
-    if (resolved) return resolved;
+    exact = uniquePostalFromHits(hits, name);
+    if (exact) return exact;
   }
-
-  // 3) Straße mit weichem Ortsfilter, dann auf OpenPLZ-Ort eingrenzen
-  const localityHints =
-    localityNames.length > 0 ? localityNames : [ortQuery];
-  for (const name of streetNameCandidates(streetNorm)) {
-    for (const hint of localityHints) {
-      const loose = await fetchStreets(name, hint);
-      if (loose.length === 0) continue;
-      const foldedHints = new Set(
-        localityHints.map((h) => foldPlaceName(h)).concat(foldPlaceName(ortQuery))
-      );
-      const filtered = loose.filter((h) => foldedHints.has(foldPlaceName(h.locality)));
-      resolved = uniquePostalFromHits(filtered.length > 0 ? filtered : loose, hint);
-      if (resolved) return resolved;
-    }
-  }
-
   return null;
 }
 
@@ -248,18 +404,9 @@ export async function resolvePlzOrtValue(
   if (!found) return null;
 
   const next = `${found.postalCode} ${found.locality}`;
-  // bereits korrekt
-  if (plz === found.postalCode && plzOrt.trim() === next) {
-    return null;
-  }
-  // PLZ fehlt oder weicht ab → korrigieren
-  if (!plz || plz !== found.postalCode) {
-    return next;
-  }
-  // PLZ stimmt, Ort-Schreibweise aus Verzeichnis übernehmen
-  if (plzOrt.trim() !== next) {
-    return next;
-  }
+  if (plz === found.postalCode && plzOrt.trim() === next) return null;
+  if (!plz || plz !== found.postalCode) return next;
+  if (plzOrt.trim() !== next) return next;
   return null;
 }
 
@@ -269,8 +416,9 @@ const PLZ_ORT_PAIRS = [
 ] as const;
 
 /**
- * Ergänzt/korrigiert PLZ in der Notiz anhand Straße + bereits gesetztem Ort.
- * OpenPLZ ist maßgeblich für Ortserkennung und PLZ-Korrektur.
+ * Ergänzt/korrigiert Straße + PLZ in der Notiz anhand OpenPLZ.
+ * ASR-Straßennamen (z. B. „Untertrafe“) werden auf den Listen-Namen
+ * (z. B. „An der Untertrave“) korrigiert, wenn Ort bekannt und Treffer eindeutig.
  */
 export async function enrichNotePostalCodes(noteMarkdown: string): Promise<string> {
   const fields = parseNoteFields(noteMarkdown);
@@ -279,13 +427,28 @@ export async function enrichNotePostalCodes(noteMarkdown: string): Promise<strin
   for (const pair of PLZ_ORT_PAIRS) {
     const street = (fields[pair.street] ?? "").trim();
     const plzOrt = (fields[pair.plzOrt] ?? "").trim();
-    // Straße vorhanden und Ort (ggf. mit falscher PLZ) im Feld → OpenPLZ befragen
     if (!street || street === UNCERTAIN_MARK) continue;
     if (!plzOrt || plzOrt === UNCERTAIN_MARK) continue;
     const { ort } = parsePlzOrt(plzOrt);
     if (!ort) continue;
 
     try {
+      const streetResolved = await resolveStreetFromOpenPlz(street, ort);
+      if (streetResolved) {
+        const { house } = splitStreetAndHouseNumber(street);
+        const canonical = house ? `${streetResolved.name} ${house}` : streetResolved.name;
+        if (foldPlaceName(canonical) !== foldPlaceName(street)) {
+          fields[pair.street] = canonical;
+          changed = true;
+        }
+        const nextPlzOrt = `${streetResolved.postalCode} ${streetResolved.locality}`;
+        if ((fields[pair.plzOrt] ?? "").trim() !== nextPlzOrt) {
+          fields[pair.plzOrt] = nextPlzOrt;
+          changed = true;
+        }
+        continue;
+      }
+
       const resolved = await resolvePlzOrtValue(street, plzOrt);
       if (resolved) {
         fields[pair.plzOrt] = resolved;
