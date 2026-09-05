@@ -24,6 +24,18 @@ Aus dem Beratungsgespräch extrahierst du ausschließlich formularrelevante Fakt
 - Feld **angesprochen**, Wert aber **nicht eindeutig** (mehrere Möglichkeiten, unklare Zuordnung, nur angedeutet, unverständliche Grabnummer) → Zellenwert genau \`?\`.
 - \`?\` bedeutet: genannt, aber nicht sicher identifiziert. **Nicht raten.**
 
+## Korrekturen (alle Felder)
+- Jede Korrektur / Richtigstellung im Abschnitt muss den **neuen** Wert in das **betroffene Feld** schreiben – nicht nur bei Mieter-Namen.
+- Das gilt für **jedes** Schema-Feld: Adresse, Telefon, E-Mail, IBAN, Grab, Bestatter, Verstorbener-Daten, Zahlungsart usw.
+- Formulierungen wie „nicht … sondern …“, „richtig ist …“, „Korrektur:“, „ich meinte …“, „nochmal: …“ → immer den korrigierten Wert eintragen.
+- Die App überschreibt damit den bisherigen Stand. Leere Zellen löschen nichts; korrigierte Werte schon.
+
+## Adresse / PLZ
+- Straße in „… Straße“, Ort in „… PLZ Ort“.
+- Wenn die Postleitzahl **nicht** genannt wird, aber Ort klar ist: in „PLZ Ort“ **nur den Ort** eintragen (ohne zu raten). Die App ermittelt die PLZ aus Straße + Ort.
+- Wenn PLZ genannt wird: „PLZ Ort“ als „12345 Ort“.
+- Keine PLZ erfinden.
+
 ## Rollen: Mieter / Verwandter / Verstorbener (streng)
 
 ### Verstorbener
@@ -67,7 +79,7 @@ Aus dem Beratungsgespräch extrahierst du ausschließlich formularrelevante Fakt
 - Nachname
 - Verwandtschaftsverhältnis zum Verstorbenen
 - Straße
-- PLZ Ort (Postleitzahl und Ort in einem Wert, z. B. „12345 Musterstadt“)
+- PLZ Ort (Postleitzahl und Ort in einem Wert, z. B. „12345 Musterstadt“; ohne genannte PLZ nur den Ort – App ergänzt PLZ)
 - Telefon 1
 - Telefon 2
 - E-Mail
@@ -134,6 +146,7 @@ Aufnahme
 
 ## Ausgabe-Regeln
 - Nur Fakten aus diesem Abschnitt; leere Zellen für alles andere.
+- Korrigierte Werte für **jedes** betroffene Feld ausgeben (nicht nur Mieter).
 - Unsichere, aber angesprochene Felder genau mit \`?\`.
 - Keine zusätzlichen Felder, Spalten, Kommentare, Einleitungen oder Codefences.`;
 

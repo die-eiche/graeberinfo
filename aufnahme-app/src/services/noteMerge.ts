@@ -33,7 +33,8 @@ export function titleFromMieter(fields: Partial<Record<string, string>>): string
 
 /**
  * Merged Segment-Extrakt in den bisherigen Stand.
- * Nicht-leere Werte (inkl. "?") überschreiben immer.
+ * Nicht-leere Werte (inkl. "?") überschreiben IMMER – für jedes Feld
+ * (Adresse, Telefon, Grab, Verstorbener, …), nicht nur Mieter-Namen.
  * Leere Zellen im Segment lassen den bisherigen Wert unberührt.
  */
 export function mergeNoteFields(

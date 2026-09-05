@@ -2,6 +2,7 @@ import { File, Paths, UploadType } from "expo-file-system";
 import { applyAllowedValueRules } from "./allowedValues";
 import { getApiKey } from "./apiKey";
 import { emptyNoteMarkdown, mergeNoteMarkdown, titleFromMieter } from "./noteMerge";
+import { enrichNotePostalCodes } from "./postalCode";
 import { parseNoteFields } from "./discoveries";
 import { getSystemPrompt } from "./systemPrompt";
 import type { NoteSnapshot } from "../types/session";
@@ -21,11 +22,16 @@ function snapshotFromMarkdown(markdown: string): NoteSnapshot {
   };
 }
 
-/** Segment normalisieren, mit bisherigem Stand mergen, Titel aus Mieter ableiten. */
-function finalizeNote(raw: string, transcript: string, previousNote: string): NoteSnapshot {
+/** Segment normalisieren, mergen, PLZ aus Straße+Ort ergänzen, Titel aus Mieter ableiten. */
+async function finalizeNote(
+  raw: string,
+  transcript: string,
+  previousNote: string
+): Promise<NoteSnapshot> {
   const segmentNormalized = applyAllowedValueRules(raw, transcript);
   const merged = mergeNoteMarkdown(previousNote || EMPTY_NOTE, segmentNormalized);
-  return snapshotFromMarkdown(merged);
+  const withPlz = await enrichNotePostalCodes(merged);
+  return snapshotFromMarkdown(withPlz);
 }
 
 async function requireKey(): Promise<string> {
@@ -89,6 +95,8 @@ export async function extractFromTranscript(
     "",
     "Extrahiere NUR aus diesem Abschnitt. Felder, die hier nicht klar vorkommen, leer lassen.",
     "Verwandter ≠ Mieter. Explizite Mieter-Angabe in die Mieter-Felder.",
+    "Korrekturen gelten für ALLE Felder: jeden neu genannten/korrigierten Wert in das passende Feld schreiben.",
+    "Adresse: Straße und Ort getrennt; ohne genannte PLZ nur den Ort in PLZ Ort (PLZ ergänzt die App).",
     "Unklare, aber angesprochene Angaben (inkl. unverstandene Grabnummer) als genau ? ausgeben.",
     "Gib Titel + vollständige Tabelle aus.",
   ].join("\n");
@@ -118,7 +126,7 @@ export async function extractFromTranscript(
     choices: Array<{ message: { content: string } }>;
   };
   const raw = data.choices?.[0]?.message?.content?.trim() || "";
-  return { ...finalizeNote(raw, transcript, previousNote), transcript };
+  return { ...(await finalizeNote(raw, transcript, previousNote)), transcript };
 }
 
 export async function transcribeAndExtract(
