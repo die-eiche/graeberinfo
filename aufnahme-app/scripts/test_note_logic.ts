@@ -111,7 +111,7 @@ async function main() {
   assert(parseNoteFields(withGrave)["Grab"] === UNCERTAIN_MARK, "KI leer + Transkript ungültig → Grab=?");
   const grabRow = buildNoteTableRows(withGrave).find((r) => r.field === "Grab");
   assert(grabRow?.uncertain === true, "Grab-Zeile uncertain für roten Punkt");
-  assert(grabRow?.value === "?", "Grab-Wert zeigt ?");
+  assert(grabRow?.value === "", "Grab-Wert leer, Unsicherheit nur als Punkt");
 
   assert(normalizeStreetForLookup("Bahnhofstraße 12") === "Bahnhofstr.", "Straße normalisieren");
   assert(parsePlzOrt("Eutin").ort === "Eutin" && parsePlzOrt("Eutin").plz === "", "nur Ort parsen");

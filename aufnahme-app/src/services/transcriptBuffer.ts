@@ -59,3 +59,8 @@ export function buildRollingTranscript(
   if (stitched.length <= maxChars) return stitched;
   return stitched.slice(stitched.length - maxChars).trim();
 }
+
+/** Gesamtes Sitzungs-Transkript ohne Längenbegrenzung (für Schlussprüfung). */
+export function buildFullTranscript(chunks: string[]): string {
+  return stitchTranscriptChunks(chunks);
+}

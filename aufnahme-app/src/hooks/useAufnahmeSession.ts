@@ -357,11 +357,19 @@ export function useAufnahmeSession() {
     try {
       const uri = await stopRecorder();
       await processUri(uri);
+      // Warten, bis alle Segmente verarbeitet sind, dann Schlussprüfung
+      while (processingRef.current || queueRef.current.length > 0) {
+        await new Promise((r) => setTimeout(r, 120));
+      }
       if (sessionIdRef.current) {
-        const finalState = await stopSession(sessionIdRef.current, {
-          title: titleRef.current,
-          noteMarkdown: noteMarkdownRef.current,
-        });
+        const finalState = await stopSession(
+          sessionIdRef.current,
+          {
+            title: titleRef.current,
+            noteMarkdown: noteMarkdownRef.current,
+          },
+          transcriptChunksRef.current
+        );
         await applyNoteUpdate(finalState.title, finalState.noteMarkdown);
         sessionIdRef.current = null;
       }

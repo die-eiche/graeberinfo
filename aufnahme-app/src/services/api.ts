@@ -1,4 +1,8 @@
-import { createEmptyNote, transcribeAndExtract } from "./mistral";
+import {
+  createEmptyNote,
+  reviewNoteFromFullTranscript,
+  transcribeAndExtract,
+} from "./mistral";
 import type { NoteSnapshot } from "../types/session";
 
 /** Lokale Session – kein eigener Server mehr nötig. */
@@ -8,8 +12,17 @@ export async function startSession(sessionId: string): Promise<NoteSnapshot & { 
   return { sessionId, ...empty };
 }
 
-export async function stopSession(sessionId: string, current: NoteSnapshot): Promise<NoteSnapshot & { sessionId: string }> {
-  return { sessionId, ...current };
+export async function stopSession(
+  sessionId: string,
+  current: NoteSnapshot,
+  transcriptChunks: string[] = []
+): Promise<NoteSnapshot & { sessionId: string }> {
+  const reviewed = await reviewNoteFromFullTranscript(
+    sessionId,
+    transcriptChunks,
+    current.noteMarkdown
+  );
+  return { sessionId, ...reviewed };
 }
 
 export async function sendAudioSegment(

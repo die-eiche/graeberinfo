@@ -1,11 +1,17 @@
 import { File, Paths, UploadType } from "expo-file-system";
 import { applyAllowedValueRules } from "./allowedValues";
 import { getApiKey } from "./apiKey";
-import { emptyNoteMarkdown, mergeNoteMarkdown, titleFromMieter } from "./noteMerge";
+import { emptyNoteMarkdown, mergeNoteMarkdown, renderNoteMarkdown, titleFromMieter } from "./noteMerge";
+import { enrichNoteDates } from "./dateEnrichment";
+import { applySameAddressFromTenant } from "./addressInference";
 import { enrichNotePostalCodes } from "./postalCode";
 import { parseNoteFields } from "./discoveries";
 import { getSystemPrompt } from "./systemPrompt";
-import { appendTranscriptChunk, buildRollingTranscript } from "./transcriptBuffer";
+import {
+  appendTranscriptChunk,
+  buildFullTranscript,
+  buildRollingTranscript,
+} from "./transcriptBuffer";
 import type { NoteSnapshot } from "../types/session";
 
 const EXTRACT_MODEL = "open-mistral-nemo";
@@ -23,14 +29,18 @@ function snapshotFromMarkdown(markdown: string): NoteSnapshot {
   };
 }
 
-/** Segment normalisieren, mergen, PLZ aus Straße+Ort ergänzen, Titel aus Mieter ableiten. */
+/** Segment normalisieren, mergen, Daten/Adresse/PLZ anreichern, Titel aus Mieter ableiten. */
 async function finalizeNote(
   raw: string,
   transcript: string,
   previousNote: string
 ): Promise<NoteSnapshot> {
   const segmentNormalized = applyAllowedValueRules(raw, transcript);
-  const merged = mergeNoteMarkdown(previousNote || EMPTY_NOTE, segmentNormalized);
+  let merged = mergeNoteMarkdown(previousNote || EMPTY_NOTE, segmentNormalized);
+  let fields = parseNoteFields(merged);
+  fields = enrichNoteDates(fields);
+  fields = applySameAddressFromTenant(fields, transcript);
+  merged = renderNoteMarkdown(fields);
   const withPlz = await enrichNotePostalCodes(merged);
   return snapshotFromMarkdown(withPlz);
 }
@@ -99,6 +109,8 @@ export async function extractFromTranscript(
     "Verwandter ≠ Mieter. Explizite Mieter-Angabe in die Mieter-Felder.",
     "Korrekturen gelten für ALLE Felder: jeden neu genannten/korrigierten Wert in das passende Feld schreiben.",
     "Adresse: Straße und Ort getrennt; ohne genannte PLZ nur den Ort in PLZ Ort (PLZ ergänzt die App).",
+    "Gleiche Adresse Verstorbener/Mieter ausdrücklich übernehmen (Straße + PLZ Ort kopieren).",
+    "Todestag und TF-Wunschtermin: wenn nur Tag/Monat ohne Jahr → Tag.Monat. ohne Jahr schreiben (Jahr ergänzt die App).",
     "Unklare, aber angesprochene Angaben (inkl. unverstandene Grabnummer) als genau ? ausgeben.",
     "Gib Titel + vollständige Tabelle aus.",
   ].join("\n");
@@ -221,4 +233,70 @@ export async function transcribeAndExtract(
       // Temp-Datei optional löschen
     }
   }
+}
+
+/**
+ * Schlussprüfung nach Stop: gesamtes Sitzungs-Transkript gegen aktuellen Notizstand
+ * prüfen und Korrekturen / Ableitungen (z. B. gleiche Adresse) zurückgeben.
+ */
+export async function reviewNoteFromFullTranscript(
+  sessionId: string,
+  transcriptChunks: string[],
+  currentNote: string
+): Promise<NoteSnapshot> {
+  const fullTranscript = buildFullTranscript(transcriptChunks);
+  if (!fullTranscript.trim()) {
+    // trotzdem Datums-/Adress-Nachbearbeitung
+    let fields = parseNoteFields(currentNote || EMPTY_NOTE);
+    fields = enrichNoteDates(fields);
+    let merged = renderNoteMarkdown(fields);
+    merged = await enrichNotePostalCodes(merged);
+    return snapshotFromMarkdown(merged);
+  }
+
+  const apiKey = await requireKey();
+  const userContent = [
+    `Session-ID: ${sessionId}`,
+    "",
+    "VOLLSTÄNDIGES Sitzungs-Transkript (gesamter Mitschnitt bis Stop):",
+    fullTranscript,
+    "",
+    "Aktueller Notizstand:",
+    currentNote || EMPTY_NOTE,
+    "",
+    "Prüfe den Notizstand am vollständigen Transkript.",
+    "Korrigiere falsche/fehlende Werte. Spätere Aussagen haben Vorrang.",
+    "Wenn der Verstorbene dieselbe Adresse wie der Mieter hatte: Verstorbener Straße und PLZ Ort vom Mieter übernehmen.",
+    "Todestag / TF-Wunschtermin ohne Jahr: nur Tag.Monat. schreiben (Jahr ergänzt die App).",
+    "Unklare, aber angesprochene Felder als genau ?.",
+    "Gib Titel + vollständige Tabelle mit dem korrigierten Gesamtstand aus.",
+  ].join("\n");
+
+  const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: EXTRACT_MODEL,
+      temperature: 0,
+      messages: [
+        { role: "system", content: getSystemPrompt() },
+        { role: "user", content: userContent },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Schlussprüfung fehlgeschlagen (${response.status}): ${text}`);
+  }
+
+  const data = (await response.json()) as {
+    choices: Array<{ message: { content: string } }>;
+  };
+  const raw = data.choices?.[0]?.message?.content?.trim() || "";
+  // Als neuer Stand mergen (nicht-leere Korrekturen überschreiben)
+  return finalizeNote(raw, fullTranscript, currentNote || EMPTY_NOTE);
 }

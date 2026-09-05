@@ -51,8 +51,8 @@ export function buildNoteTableRows(noteMarkdown: string): NoteTableRow[] {
     const uncertain = raw === UNCERTAIN_VALUE;
     return {
       field,
-      // "?" sichtbar lassen + roter Punkt (uncertain)
-      value: raw,
+      // Unsicherheit nur als roter Punkt, Feldwert leer lassen (kein "?")
+      value: uncertain ? "" : raw,
       uncertain,
     };
   });

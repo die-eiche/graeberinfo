@@ -14,10 +14,12 @@ Aus dem Beratungsgespräch extrahierst du ausschließlich formularrelevante Fakt
 - Ausgabe enthält ausschließlich Titelzeile und die Markdown-Tabelle – nichts sonst.
 
 ## Wichtig: Gebundener Gesprächstext
-- Du erhältst einen **an Sprechpausen geschnittenen, zusammengefügten** Text (letzte Abschnitte).
-- Extrahiere daraus. Die App merged den Notizstand selbst.
-- Bei Widersprüchen im Text gelten **spätere** Aussagen / Korrekturen.
+- Live: Du erhältst einen **an Sprechpausen geschnittenen, zusammengefügten** Text (letzte Abschnitte).
+- Beim Stop erhältst du das **vollständige Sitzungs-Transkript** zur Schlussprüfung gegen den Notizstand.
+- Die App hält den kompletten Mitschnitt (Transkript) bis zum Stop und merged den Notizstand selbst.
+- Bei Widersprüchen gelten **spätere** Aussagen / Korrekturen.
 - Felder, die im Text **nicht** klar vorkommen → leere Zelle.
+- Ableitungen nur wenn ausdrücklich gesagt (z. B. „gleiche Adresse wie der Mieter“).
 - Nicht raten.
 
 ## Unsicherheit
@@ -36,6 +38,7 @@ Aus dem Beratungsgespräch extrahierst du ausschließlich formularrelevante Fakt
 - Wenn die Postleitzahl **nicht** genannt wird, aber Ort klar ist: in „PLZ Ort“ **nur den Ort** eintragen (ohne zu raten). Die App ermittelt die PLZ aus Straße + Ort.
 - Wenn PLZ genannt wird: „PLZ Ort“ als „12345 Ort“.
 - Keine PLZ erfinden.
+- Wenn gesagt wird, der Verstorbene hatte **dieselbe / die gleiche Adresse** wie der Mieter (o. ä.): **Verstorbener Straße** und **Verstorbener PLZ Ort** mit den Mieter-Werten füllen (nicht leer lassen, nicht nochmals abfragen).
 
 ## Rollen: Mieter / Verwandter / Verstorbener (streng)
 
@@ -94,7 +97,7 @@ Aus dem Beratungsgespräch extrahierst du ausschließlich formularrelevante Fakt
 - Straße
 - PLZ Ort
 - Geburtstag
-- Todestag
+- Todestag → wenn nur Tag/Monat ohne Jahr genannt: als \`TT.MM.\` ausgeben (Jahr ergänzt die App; um den Jahreswechsel herum sinnvoll letztes/aktuelles/kommendes Jahr)
 - Bei Vorsorge/Selbstbuchung: alle diese Felder leer
 
 ### Sonstiges
@@ -102,7 +105,7 @@ Aus dem Beratungsgespräch extrahierst du ausschließlich formularrelevante Fakt
 - Bestatter-Aufwand
 - Grab → Punkteformat; nur Listen-Treffer; unsicher/ungültig → \`?\`
 - Urne
-- TF-Wunschtermin → Freitext, nur wenn genannt
+- TF-Wunschtermin → Datum/Freitext; bei nur Tag/Monat ohne Jahr: \`TT.MM.\` (Jahr ergänzt die App um den Jahreswechsel herum)
 - TF-Ideen → Freitext, nur wenn genannt
 
 ## Ausgabeformat

@@ -72,7 +72,7 @@ export function NoteTable({ rows, focusFields, title }: Props) {
                 style={[
                   styles.field,
                   styles.fieldCol,
-                  filled || item.uncertain ? styles.textFilled : styles.textEmpty,
+                  filled ? styles.fieldLabelFilled : styles.fieldLabelEmpty,
                 ]}
                 numberOfLines={2}
               >
@@ -82,7 +82,7 @@ export function NoteTable({ rows, focusFields, title }: Props) {
                 style={[
                   styles.value,
                   styles.valueCol,
-                  filled ? styles.textFilled : styles.textEmpty,
+                  filled ? styles.valueFilled : styles.valueEmpty,
                   highlighted ? styles.valueFocus : null,
                 ]}
               >
@@ -160,13 +160,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 17,
   },
-  textEmpty: {
-    color: "rgba(110,110,110,0.95)",
+  /** Leere Feldbezeichner: etwas heller */
+  fieldLabelEmpty: {
+    color: "rgba(155,155,155,0.95)",
   },
-  textFilled: {
-    color: "rgba(170,170,170,0.98)",
+  /** Ausgefüllte Feldbezeichner: weiter abgedunkelt */
+  fieldLabelFilled: {
+    color: "rgba(105,105,105,0.95)",
+  },
+  valueEmpty: {
+    color: "rgba(90,90,90,0.9)",
+  },
+  /** Ausgefüllte Werte: leicht weiter abgedunkelt */
+  valueFilled: {
+    color: "rgba(135,135,135,0.98)",
   },
   valueFocus: {
-    color: "rgba(210,210,210,1)",
+    color: "rgba(190,190,190,1)",
   },
 });
