@@ -146,6 +146,12 @@ assert(normalizeEmailValue("max.mustermann.gmail.com") === "max.mustermann@gmail
 assert(normalizeEmailValue("info at web.de") === "info@web.de", "E-Mail at → @");
 assert(normalizeEmailValue("a.b@gmx.de") === "a.b@gmx.de", "E-Mail mit @ bleibt");
 
+assert(normalizeEmailValue("Michael@Angern DE") === "michael@angern.de", "getippt Michael@Angern DE");
+assert(normalizeEmailValue("Michael. angern.de") === "michael@angern.de", "Punkt statt @ + Leerzeichen");
+assert(normalizeEmailValue("Michael.angern.de") === "michael@angern.de", "Firmen-Domain drei Segmente");
+assert(normalizeEmailValue("Michael at Angern DE") === "michael@angern.de", "gesprochen at + DE");
+
+
 const ageNow = new Date("2026-09-05T12:00:00");
 const ageFields = enrichNoteDates(
   { "Verstorbener Geburtstag": "00.09.2026", "Verstorbener Todestag": "04.09.2026" },

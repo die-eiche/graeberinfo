@@ -168,6 +168,17 @@ async function main() {
   assert(!ageF["Verstorbener Todestag"], "Pipeline: Todestag nicht aus geworden");
   assert(ageF["Mieter E-Mail"] === "max.mustermann@gmail.com", "Pipeline: E-Mail Punkt→@");
 
+
+  const mailSnap = await runNotePipeline({
+    rawMarkdown: renderNoteMarkdown({ "Mieter E-Mail": "Michael. angern.de" }),
+    transcript: "E-Mail Michael@Angern DE",
+    previousNote: emptyNoteMarkdown(),
+    now: new Date("2026-09-05T12:00:00"),
+    mode: "segment",
+  });
+  const mailF = parseNoteFields(mailSnap.noteMarkdown);
+  assert(mailF["Mieter E-Mail"] === "michael@angern.de", "Pipeline: Michael.angern.de → @");
+
 if (failed) {
     console.error(`\n${failed} fehlgeschlagen`);
     process.exit(1);

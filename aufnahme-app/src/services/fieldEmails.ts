@@ -1,6 +1,9 @@
 /**
- * Normalisiert E-Mail-Adressen aus ASR/Extrakt.
- * Typische Fehler: „at“/„ät“ statt @, oder @ als Punkt (name.gmail.com).
+ * Normalisiert E-Mail-Adressen aus ASR/Extrakt/Tippfehlern.
+ * Typische Fehler:
+ * - „at“/„ät“ statt @
+ * - @ als Punkt (Michael.angern.de statt Michael@angern.de)
+ * - TLD als Extra-Wort („Angern DE“ → angern.de)
  */
 
 const EMAIL_PROVIDERS = [
@@ -35,35 +38,87 @@ const EMAIL_PROVIDERS = [
 
 const EMAIL_FIELDS = ["Mieter E-Mail"] as const;
 
-function stripSpokenSeparators(raw: string): string {
-  return raw
-    .trim()
-    .replace(/\s+/g, " ")
+const COMMON_TLDS = new Set([
+  "de",
+  "com",
+  "net",
+  "org",
+  "at",
+  "ch",
+  "eu",
+  "info",
+  "biz",
+  "io",
+  "me",
+  "online",
+]);
+
+function isPlausibleLabel(label: string): boolean {
+  return /^[a-z0-9][a-z0-9-]{0,61}$/i.test(label);
+}
+
+function isPlausibleTld(tld: string): boolean {
+  const t = tld.toLowerCase();
+  return COMMON_TLDS.has(t) || /^[a-z]{2,24}$/i.test(t);
+}
+
+/**
+ * Stellt @ wieder her und bereinigt getippte/gesprochene E-Mail-Formen.
+ * Beispiele:
+ * - Michael@Angern DE → michael@angern.de
+ * - Michael. angern.de → michael@angern.de
+ * - max.mustermann.gmail.com → max.mustermann@gmail.com
+ * - info at web.de → info@web.de
+ */
+export function normalizeEmailValue(raw: string): string {
+  let value = raw.trim().replace(/\s+/g, " ");
+  if (!value) return value;
+
+  // 1) Gesprochenes „at“/„ät“ zuerst zu @ – sonst frisst die TLD-Regel „Michael at …“
+  value = value
     .replace(/\s*(?:klammeraffe|at-zeichen|atzeichen)\s*/gi, "@")
     .replace(/\s+(?:at|ät|aet)\s+/gi, "@")
     .replace(/\s+punkt\s+/gi, ".")
     .replace(/\s+minus\s+/gi, "-")
-    .replace(/\s+unterstrich\s+/gi, "_")
-    .replace(/\s+/g, "");
-}
+    .replace(/\s+unterstrich\s+/gi, "_");
 
-/**
- * Stellt @ wieder her, wenn ASR nur Punkte geliefert hat
- * (z. B. max.mustermann.gmail.com → max.mustermann@gmail.com).
- */
-export function normalizeEmailValue(raw: string): string {
-  let value = stripSpokenSeparators(raw);
+  // 2) TLD als separates Wort: „Angern DE“ → angern.de (ohne „at“, sonst Konflikt)
+  value = value.replace(
+    /\b([A-Za-z0-9][A-Za-z0-9-]{0,61})\s+(de|com|net|org|ch|eu|info|biz|io|me)\b/gi,
+    (_m, domain: string, tld: string) => `${domain}.${tld.toLowerCase()}`
+  );
+  // Österreich: „firma AT“ nur direkt nach @
+  value = value.replace(
+    /(@[A-Za-z0-9][A-Za-z0-9-]{0,61})\s+at\b/gi,
+    (_m, localAtDomain: string) => `${localAtDomain}.at`
+  );
+
+  // Leerzeichen um @ und Punkte (Michael. angern.de)
+  value = value.replace(/\s*@\s*/g, "@").replace(/\s*\.\s*/g, ".");
+  value = value.replace(/\s+/g, "");
+
   if (!value) return value;
 
-  // bereits mit @: Kleinbuchstaben, doppelte Punkte bereinigen
+  // bereits mit @: Domain säubern (Michael@Angern.de / Michael@AngernDE)
   if (value.includes("@")) {
     const [local, ...rest] = value.split("@");
-    const domain = rest.join("@").replace(/@/g, "");
+    let domain = rest.join("").replace(/@/g, "");
+    if (!domain.includes(".")) {
+      for (const tld of COMMON_TLDS) {
+        const match = new RegExp(`^([a-z0-9][a-z0-9-]{1,60})${tld}$`, "i").exec(domain);
+        if (match?.[1]) {
+          domain = `${match[1]}.${tld}`;
+          break;
+        }
+      }
+    }
     if (!local || !domain) return value.toLowerCase();
     return `${local}@${domain}`.toLowerCase().replace(/\.{2,}/g, ".");
   }
 
   const lower = value.toLowerCase();
+
+  // bekannte Provider (auch mit Punkten im Local-Part)
   for (const provider of EMAIL_PROVIDERS) {
     const suffix = `.${provider}`;
     if (lower.endsWith(suffix)) {
@@ -72,11 +127,20 @@ export function normalizeEmailValue(raw: string): string {
     }
   }
 
-  // z. B. name.firma.de mit ≥4 Segmenten (vorname.nachname.firma.de)
   const parts = value.split(".").filter(Boolean);
+
+  // name.firma.de → name@firma.de  (genau der Fall Michael.angern.de)
+  if (parts.length === 3) {
+    const [local, domain, tld] = parts;
+    if (isPlausibleLabel(local) && isPlausibleLabel(domain) && isPlausibleTld(tld)) {
+      return `${local}@${domain}.${tld}`.toLowerCase();
+    }
+  }
+
+  // vorname.nachname.firma.de → vorname.nachname@firma.de
   if (parts.length >= 4) {
     const tld = parts[parts.length - 1];
-    if (/^[a-z]{2,24}$/i.test(tld)) {
+    if (isPlausibleTld(tld)) {
       const domain = `${parts[parts.length - 2]}.${tld}`.toLowerCase();
       const local = parts.slice(0, -2).join(".");
       if (local.length >= 1) return `${local}@${domain}`;
