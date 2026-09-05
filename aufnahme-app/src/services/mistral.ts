@@ -5,6 +5,7 @@ import { emptyNoteMarkdown, mergeNoteMarkdown, titleFromMieter } from "./noteMer
 import { enrichNotePostalCodes } from "./postalCode";
 import { parseNoteFields } from "./discoveries";
 import { getSystemPrompt } from "./systemPrompt";
+import { appendTranscriptChunk, buildRollingTranscript } from "./transcriptBuffer";
 import type { NoteSnapshot } from "../types/session";
 
 const EXTRACT_MODEL = "open-mistral-nemo";
@@ -90,10 +91,11 @@ export async function extractFromTranscript(
   const userContent = [
     `Session-ID: ${sessionId}`,
     "",
-    "Gesprächsabschnitt (nur dieser Text):",
+    "Gebundener Gesprächstext (letzte Abschnitte an Pausen geschnitten und zusammengefügt):",
     transcript,
     "",
-    "Extrahiere NUR aus diesem Abschnitt. Felder, die hier nicht klar vorkommen, leer lassen.",
+    "Extrahiere aus diesem gebundenen Text. Spätere Aussagen und Korrekturen haben Vorrang.",
+    "Felder, die im Text nicht klar vorkommen, leer lassen.",
     "Verwandter ≠ Mieter. Explizite Mieter-Angabe in die Mieter-Felder.",
     "Korrekturen gelten für ALLE Felder: jeden neu genannten/korrigierten Wert in das passende Feld schreiben.",
     "Adresse: Straße und Ort getrennt; ohne genannte PLZ nur den Ort in PLZ Ort (PLZ ergänzt die App).",
@@ -132,8 +134,15 @@ export async function extractFromTranscript(
 export async function transcribeAndExtract(
   sessionId: string,
   audioUri: string,
-  previousNote: string
-): Promise<NoteSnapshot & { transcript?: string; skipped?: boolean }> {
+  previousNote: string,
+  priorTranscriptChunks: string[] = []
+): Promise<
+  NoteSnapshot & {
+    transcript?: string;
+    transcriptChunks?: string[];
+    skipped?: boolean;
+  }
+> {
   const apiKey = await requireKey();
 
   const source = new File(audioUri);
@@ -142,6 +151,7 @@ export async function transcribeAndExtract(
     return {
       ...snapshotFromMarkdown(previousNote || EMPTY_NOTE),
       transcript: "",
+      transcriptChunks: priorTranscriptChunks,
       skipped: true,
     };
   }
@@ -188,11 +198,20 @@ export async function transcribeAndExtract(
       return {
         ...snapshotFromMarkdown(previousNote || EMPTY_NOTE),
         transcript: "",
+        transcriptChunks: priorTranscriptChunks,
         skipped: true,
       };
     }
 
-    return extractFromTranscript(sessionId, transcript, previousNote);
+    const transcriptChunks = appendTranscriptChunk(priorTranscriptChunks, transcript);
+    const rolling = buildRollingTranscript(transcriptChunks);
+    const extracted = await extractFromTranscript(sessionId, rolling, previousNote);
+    return {
+      ...extracted,
+      // Roh-Transkript dieses Segments für die UI/Diagnose; Chunks für den nächsten Durchlauf
+      transcript,
+      transcriptChunks,
+    };
   } finally {
     try {
       if (uploadFile.exists) {

@@ -13,11 +13,12 @@ Aus dem Beratungsgespräch extrahierst du ausschließlich formularrelevante Fakt
 - Nur explizit und eindeutig genannte Fakten übernehmen.
 - Ausgabe enthält ausschließlich Titelzeile und die Markdown-Tabelle – nichts sonst.
 
-## Wichtig: Nur dieser Gesprächsabschnitt
-- Du erhältst **nur den aktuellen Gesprächsabschnitt**.
-- Extrahiere **ausschließlich** daraus. Die App merged den Stand selbst.
-- Felder, die in diesem Abschnitt **nicht** klar vorkommen → leere Zelle.
-- Nicht raten, nichts aus früheren Abschnitten „mitdenken“.
+## Wichtig: Gebundener Gesprächstext
+- Du erhältst einen **an Sprechpausen geschnittenen, zusammengefügten** Text (letzte Abschnitte).
+- Extrahiere daraus. Die App merged den Notizstand selbst.
+- Bei Widersprüchen im Text gelten **spätere** Aussagen / Korrekturen.
+- Felder, die im Text **nicht** klar vorkommen → leere Zelle.
+- Nicht raten.
 
 ## Unsicherheit
 - Feld **nie genannt** → leere Zelle.

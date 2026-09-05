@@ -14,13 +14,16 @@ import { hasApiKey } from "../services/apiKey";
 import { diffDiscoveries, type Discovery } from "../services/discoveries";
 import { shareNoteToSystemNotes, upsertNoteFile } from "../services/notes";
 import type { SessionStatus } from "../types/session";
-
-const SEGMENT_MS = 10_000;
+import {
+  METER_POLL_MS,
+  evaluateSegmentCut,
+} from "../services/segmentPolicy";
 
 /** WAV/PCM auf iOS – von Mistral zuverlässig dekodierbar. Android: AAC/M4A. */
 const RECORDING_OPTIONS: RecordingOptions =
   Platform.OS === "ios"
     ? {
+        isMeteringEnabled: true,
         extension: ".wav",
         sampleRate: 16000,
         numberOfChannels: 1,
@@ -44,6 +47,7 @@ const RECORDING_OPTIONS: RecordingOptions =
         },
       }
     : {
+        isMeteringEnabled: true,
         extension: ".m4a",
         sampleRate: 44100,
         numberOfChannels: 1,
@@ -103,6 +107,9 @@ export function useAufnahmeSession() {
   const titleRef = useRef("Aufnahme");
   const discoverySeqRef = useRef(0);
   const segmentTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const silenceSinceRef = useRef<number | null>(null);
+  const rotatingRef = useRef(false);
+  const transcriptChunksRef = useRef<string[]>([]);
 
   const refreshKeyState = useCallback(async () => {
     setKeyConfigured(await hasApiKey());
@@ -172,8 +179,12 @@ export function useAufnahmeSession() {
           const result = await sendAudioSegment(
             sessionIdRef.current,
             uri,
-            noteMarkdownRef.current
+            noteMarkdownRef.current,
+            transcriptChunksRef.current
           );
+          if (result.transcriptChunks) {
+            transcriptChunksRef.current = result.transcriptChunks;
+          }
           if (!result.skipped) {
             await applyNoteUpdate(result.title, result.noteMarkdown);
             setError(null);
@@ -221,20 +232,51 @@ export function useAufnahmeSession() {
 
   const rotateSegment = useCallback(async () => {
     if (statusRef.current !== "recording") return;
-    const uri = await stopRecorder();
-    const ok = await beginRecording();
-    if (!ok) {
-      setStatus("paused");
-      clearSegmentTimer();
+    if (rotatingRef.current) return;
+    rotatingRef.current = true;
+    silenceSinceRef.current = null;
+    try {
+      const uri = await stopRecorder();
+      const ok = await beginRecording();
+      if (!ok) {
+        setStatus("paused");
+        clearSegmentTimer();
+      }
+      await processUri(uri);
+    } finally {
+      rotatingRef.current = false;
+      silenceSinceRef.current = null;
     }
-    await processUri(uri);
   }, [beginRecording, clearSegmentTimer, processUri, stopRecorder]);
 
   const startSegmentTimer = useCallback(() => {
     clearSegmentTimer();
+    silenceSinceRef.current = null;
     segmentTimerRef.current = setInterval(() => {
-      void rotateSegment();
-    }, SEGMENT_MS);
+      if (statusRef.current !== "recording") return;
+      if (rotatingRef.current) return;
+      const recorder = recorderRef.current;
+      if (!recorder) return;
+      let durationMillis = 0;
+      let metering: number | undefined;
+      try {
+        const status = recorder.getStatus();
+        durationMillis = status.durationMillis ?? 0;
+        metering = status.metering;
+      } catch {
+        return;
+      }
+      const now = Date.now();
+      const decision = evaluateSegmentCut(
+        { durationMillis, metering },
+        silenceSinceRef.current,
+        now
+      );
+      silenceSinceRef.current = decision.nextSilenceSinceMs;
+      if (decision.shouldCut) {
+        void rotateSegment();
+      }
+    }, METER_POLL_MS);
   }, [clearSegmentTimer, rotateSegment]);
 
   const pauseInternal = useCallback(async () => {
@@ -270,6 +312,7 @@ export function useAufnahmeSession() {
       try {
         setDiscoveries([]);
         setFocusFields([]);
+        transcriptChunksRef.current = [];
         discoverySeqRef.current = 0;
         notePathRef.current = null;
         const started = await startSession(sessionId);

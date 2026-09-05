@@ -15,7 +15,14 @@ export async function stopSession(sessionId: string, current: NoteSnapshot): Pro
 export async function sendAudioSegment(
   sessionId: string,
   uri: string,
-  previousNote: string
-): Promise<NoteSnapshot & { transcript?: string; skipped?: boolean }> {
-  return transcribeAndExtract(sessionId, uri, previousNote);
+  previousNote: string,
+  priorTranscriptChunks: string[] = []
+): Promise<
+  NoteSnapshot & {
+    transcript?: string;
+    transcriptChunks?: string[];
+    skipped?: boolean;
+  }
+> {
+  return transcribeAndExtract(sessionId, uri, previousNote, priorTranscriptChunks);
 }
