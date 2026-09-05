@@ -2,7 +2,11 @@ import { File, Paths, UploadType } from "expo-file-system";
 import { getApiKey } from "./apiKey";
 import { emptyNoteMarkdown, renderNoteMarkdown, titleFromMieter } from "./noteMerge";
 import { parseNoteFields } from "./discoveries";
-import { normalizeExistingNote, runNotePipeline } from "./notePipeline";
+import {
+  normalizeExistingNote,
+  runNotePipeline,
+  type NotePipelineMode,
+} from "./notePipeline";
 import { getSystemPrompt } from "./systemPrompt";
 import {
   appendTranscriptChunk,
@@ -34,17 +38,20 @@ function snapshotFromMarkdown(markdown: string): NoteSnapshot {
 
 /**
  * Einziger Commit-Pfad: Modell-Extrakt → Validate/Normalize-Pipeline → Notiz.
- * Keine Ad-hoc-Nachbearbeitung außerhalb von notePipeline.
+ * Live-Segmente: mode "segment" (Altbestand bleibt).
+ * Stop-Review: mode "full" (Beleg gegen gesamtes Transkript).
  */
 async function finalizeNote(
   raw: string,
   transcript: string,
-  previousNote: string
+  previousNote: string,
+  mode: NotePipelineMode = "segment"
 ): Promise<NoteSnapshot> {
   return runNotePipeline({
     rawMarkdown: raw,
     transcript,
     previousNote: previousNote || EMPTY_NOTE,
+    mode,
   });
 }
 
@@ -310,6 +317,6 @@ export async function reviewNoteFromFullTranscript(
     choices: Array<{ message: { content: string } }>;
   };
   const raw = data.choices?.[0]?.message?.content?.trim() || "";
-  // Als neuer Stand mergen (nicht-leere Korrekturen überschreiben)
-  return finalizeNote(raw, fullTranscript, currentNote || EMPTY_NOTE);
+  // Volles Transkript: Halluzinationen gegen Gesamtbeleg streichen, Altbestand sonst erhalten
+  return finalizeNote(raw, fullTranscript, currentNote || EMPTY_NOTE, "full");
 }

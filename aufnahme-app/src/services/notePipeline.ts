@@ -7,6 +7,11 @@
  * 3. NORMALIZE – Relativdaten, Rollenrettung, Straßen/PLZ, Adresskopie.
  * 4. COMMIT    – Nur der validierte Stand wird in die Notiz geschrieben.
  *
+ * Wichtig gegen „Werte verschwinden“:
+ * - Live-Segment: Grounding nur auf dem **neuen Extrakt**, danach Merge.
+ *   Bereits bestätigte Felder bleiben, auch wenn das aktuelle Segment sie nicht nennt.
+ * - Stop/Full: Grounding auf dem Gesamtstand gegen das **volle** Transkript.
+ *
  * Neue Fehlertypen gehören als Regelklasse hierher, nicht als Prompt-Sonderfall.
  */
 import { applyAllowedValueRules } from "./allowedValues";
@@ -17,6 +22,7 @@ import { clearUngroundedFields } from "./fieldGrounding";
 import { rescueMisplacedFields } from "./fieldRescue";
 import {
   emptyNoteMarkdown,
+  mergeNoteFields,
   mergeNoteMarkdown,
   renderNoteMarkdown,
   titleFromMieter,
@@ -26,22 +32,30 @@ import type { NoteSnapshot } from "../types/session";
 
 const EMPTY_NOTE = emptyNoteMarkdown();
 
+export type NotePipelineMode = "segment" | "full";
+
 export type NotePipelineInput = {
   /** Rohe Modell-Ausgabe (Titel + Markdown-Tabelle) oder bisheriger Stand. */
   rawMarkdown: string;
-  /** Transkript-Beleg für Grounding und Rescue (Segment oder Vollsitzung). */
+  /** Transkript-Beleg für Grounding und Rescue (Segment/Rolling oder Vollsitzung). */
   transcript: string;
   /** Bisheriger Notizstand; leere Segment-Zellen löschen nichts. */
   previousNote?: string;
   /** Referenzzeit für Relativdaten (Tests). */
   now?: Date;
+  /**
+   * segment = Live: Halluzinationen nur im neuen Extrakt streichen, Altbestand schützen.
+   * full = Stop: Gesamtstand gegen volles Transkript belegen.
+   */
+  mode?: NotePipelineMode;
 };
 
 export type NotePipelineStage =
+  | "ground_incoming"
   | "merge_allowed_values"
   | "enrich_dates"
   | "rescue_roles"
-  | "clear_ungrounded"
+  | "clear_ungrounded_full"
   | "same_address"
   | "openplz_street_plz";
 
@@ -50,10 +64,11 @@ export type NotePipelineStage =
  * Mistral gehört bewusst nicht hier hinein – nur Extraktion davor.
  */
 export const NOTE_PIPELINE_STAGES: readonly NotePipelineStage[] = [
+  "ground_incoming",
   "merge_allowed_values",
   "enrich_dates",
   "rescue_roles",
-  "clear_ungrounded",
+  "clear_ungrounded_full",
   "same_address",
   "openplz_street_plz",
 ] as const;
@@ -76,27 +91,37 @@ export async function runNotePipeline(input: NotePipelineInput): Promise<NoteSna
   const now = input.now ?? new Date();
   const transcript = input.transcript ?? "";
   const previous = input.previousNote || EMPTY_NOTE;
+  const mode: NotePipelineMode = input.mode ?? "segment";
 
-  // 1) Listen/Grab-Regeln auf Segment, dann Merge (nicht-leer überschreibt)
+  // 1) Listen/Grab-Regeln nur auf dem neuen Extrakt
   const segmentNormalized = applyAllowedValueRules(input.rawMarkdown, transcript);
-  let merged = mergeNoteMarkdown(previous, segmentNormalized);
-  let fields = parseNoteFields(merged);
+  let incomingFields = parseNoteFields(segmentNormalized);
 
-  // 2) Relativdaten deterministisch (vorgestern, übernächster Sonntag, …)
+  // 2) Live: Halluzinationen nur im Extrakt entfernen – nicht den Altbestand anfassen
+  if (mode === "segment") {
+    incomingFields = clearUngroundedFields(incomingFields, transcript);
+  }
+
+  // 3) Merge: nicht-leere Incoming-Werte überschreiben, leere Incoming-Zellen erhalten Previous
+  let fields = mergeNoteFields(parseNoteFields(previous), incomingFields);
+
+  // 4) Relativdaten deterministisch
   fields = enrichNoteDates(fields, now, transcript);
 
-  // 3) Rollen aus Transkript retten (Bestatter/Mieter/Verstorbener)
+  // 5) Rollen aus Transkript retten (füllt/korrigiert, löscht keinen belegten Altbestand ohne Anlass)
   fields = rescueMisplacedFields(fields, transcript);
 
-  // 4) Nur belegte Werte behalten (keine Halluzinationen)
-  fields = clearUngroundedFields(fields, transcript);
+  // 6) Stop/Full: Gesamtstand gegen volles Transkript belegen
+  if (mode === "full") {
+    fields = clearUngroundedFields(fields, transcript);
+  }
 
-  // 5) Explizite „gleiche Adresse“-Ableitung
+  // 7) Explizite „gleiche Adresse“-Ableitung
   fields = applySameAddressFromTenant(fields, transcript);
 
-  merged = renderNoteMarkdown(fields);
+  const merged = renderNoteMarkdown(fields);
 
-  // 6) OpenPLZ: Straße kanonisieren + PLZ setzen/korrigieren
+  // 8) OpenPLZ: Straße kanonisieren + PLZ setzen/korrigieren
   const withPlz = await enrichNotePostalCodes(merged);
   return snapshotFromMarkdown(withPlz);
 }
@@ -115,5 +140,7 @@ export async function normalizeExistingNote(
     transcript,
     previousNote: noteMarkdown || EMPTY_NOTE,
     now,
+    // Ohne volles Transkript keinen Altbestand leeren
+    mode: transcript.trim() ? "full" : "segment",
   });
 }

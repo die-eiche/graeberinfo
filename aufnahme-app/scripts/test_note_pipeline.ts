@@ -18,7 +18,7 @@ async function main() {
   assert(NOTE_PIPELINE_STAGES.length >= 6, "feste Pipeline-Stufen vorhanden");
   assert(
     NOTE_PIPELINE_STAGES.join(">") ===
-      "merge_allowed_values>enrich_dates>rescue_roles>clear_ungrounded>same_address>openplz_street_plz",
+      "ground_incoming>merge_allowed_values>enrich_dates>rescue_roles>clear_ungrounded_full>same_address>openplz_street_plz",
     "Stufenreihenfolge stabil"
   );
 
@@ -45,6 +45,7 @@ async function main() {
     transcript,
     previousNote: emptyNoteMarkdown(),
     now,
+    mode: "segment",
   });
   const fields = parseNoteFields(snap.noteMarkdown);
 
@@ -64,6 +65,54 @@ async function main() {
     "Straße via OpenPLZ kanonisiert"
   );
   assert(fields["Mieter PLZ Ort"].startsWith("23552"), "PLZ via OpenPLZ gesetzt");
+
+  // Regression: bereits korrekte Werte dürfen durch ein späteres Segment nicht geleert werden
+  const previous = renderNoteMarkdown({
+    "Mieter Vorname": "Thomas",
+    "Mieter Nachname": "Berger",
+    "Verstorbener Vorname": "Anna",
+    "Verstorbener Nachname": "Berger",
+    Grab: "1.01.01.01",
+    Bestatter: "Söhnlein",
+  });
+  const laterSegment = renderNoteMarkdown({
+    "TF-Wunschtermin": "20.09.2026",
+    // Modell halluziniert leeren/anderen Kram nicht – aber nennt die alten Namen nicht erneut
+  });
+  const laterTranscript =
+    "Die Trauerfeier soll am 20. September stattfinden."; // ohne Namen/Grab
+  const preserved = await runNotePipeline({
+    rawMarkdown: laterSegment,
+    transcript: laterTranscript,
+    previousNote: previous,
+    now,
+    mode: "segment",
+  });
+  const kept = parseNoteFields(preserved.noteMarkdown);
+  assert(kept["Mieter Vorname"] === "Thomas", "Segment-Mode: Mieter Vorname bleibt");
+  assert(kept["Mieter Nachname"] === "Berger", "Segment-Mode: Mieter Nachname bleibt");
+  assert(kept["Verstorbener Vorname"] === "Anna", "Segment-Mode: Verstorbener Vorname bleibt");
+  assert(kept.Grab === "1.01.01.01", "Segment-Mode: Grab bleibt");
+  assert(kept.Bestatter === "Söhnlein", "Segment-Mode: Bestatter bleibt");
+  assert(kept["TF-Wunschtermin"] === "20.09.2026", "neues Segment aktualisiert TF");
+
+  // Full-Mode: unbelegte Halluzination gegen Gesamttranskript streichen
+  const hallucinated = renderNoteMarkdown({
+    "Mieter Vorname": "Thomas",
+    "Verstorbener Vorname": "Anna",
+    Grab: "?",
+  });
+  const full = await runNotePipeline({
+    rawMarkdown: emptyNoteMarkdown(),
+    transcript: "Der Mieter ist Thomas Berger. Bestatter Söhnlein.",
+    previousNote: hallucinated,
+    now,
+    mode: "full",
+  });
+  const fullFields = parseNoteFields(full.noteMarkdown);
+  assert(fullFields["Mieter Vorname"] === "Thomas", "Full-Mode: belegter Mieter bleibt");
+  assert(!fullFields["Verstorbener Vorname"], "Full-Mode: unbelegte Anna entfernt");
+  assert(!fullFields.Grab, "Full-Mode: unbelegtes Grab entfernt");
 
   if (failed) {
     console.error(`\n${failed} fehlgeschlagen`);
