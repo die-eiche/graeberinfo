@@ -53,6 +53,41 @@ async function requireKey(): Promise<string> {
   return key;
 }
 
+function extensionOf(uri: string): string {
+  const clean = uri.split("?")[0] || uri;
+  const match = /\.([a-z0-9]+)$/i.exec(clean);
+  return (match?.[1] || "wav").toLowerCase();
+}
+
+function mimeForExtension(ext: string): string {
+  switch (ext) {
+    case "wav":
+      return "audio/wav";
+    case "m4a":
+      return "audio/m4a";
+    case "mp4":
+      return "audio/mp4";
+    case "caf":
+      return "audio/x-caf";
+    case "mp3":
+      return "audio/mpeg";
+    default:
+      return "application/octet-stream";
+  }
+}
+
+async function waitForFile(file: File, attempts = 12): Promise<number> {
+  let last = -1;
+  for (let i = 0; i < attempts; i++) {
+    if (file.exists && file.size > 0 && file.size === last) {
+      return file.size;
+    }
+    last = file.exists ? file.size : -1;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return file.exists ? file.size : 0;
+}
+
 export function createEmptyNote(): NoteSnapshot {
   return parseNote(EMPTY_NOTE);
 }
@@ -109,11 +144,29 @@ export async function transcribeAndExtract(
 ): Promise<NoteSnapshot & { transcript?: string; skipped?: boolean }> {
   const apiKey = await requireKey();
 
-  // Native Multipart-Upload mit korrektem Dateinamen/.m4a,
-  // damit Mistral die Datei dekodieren kann.
   const source = new File(audioUri);
-  const uploadFile = new File(Paths.cache, `segment-${Date.now()}.m4a`);
-  source.copy(uploadFile);
+  const sourceSize = await waitForFile(source);
+  if (!source.exists || sourceSize < 500) {
+    return {
+      title: parseNote(previousNote || EMPTY_NOTE).title,
+      noteMarkdown: previousNote || EMPTY_NOTE,
+      transcript: "",
+      skipped: true,
+    };
+  }
+
+  const ext = extensionOf(audioUri);
+  const mimeType = mimeForExtension(ext);
+  const uploadFile = new File(Paths.cache, `segment-${Date.now()}.${ext}`);
+
+  // WICHTIG: copy() ist async – ohne await wurde eine leere Datei hochgeladen
+  // und Mistral antwortete mit "Audio input could not be decoded" (3310).
+  await source.copy(uploadFile);
+
+  const uploadSize = await waitForFile(uploadFile);
+  if (!uploadFile.exists || uploadSize < 500) {
+    throw new Error("Audiodatei ist leer oder noch nicht fertig geschrieben.");
+  }
 
   try {
     const uploadResult = await uploadFile.upload(
@@ -121,7 +174,7 @@ export async function transcribeAndExtract(
       {
         uploadType: UploadType.MULTIPART,
         fieldName: "file",
-        mimeType: "audio/mp4",
+        mimeType,
         parameters: {
           model: TRANSCRIBE_MODEL,
           language: "de",

@@ -1,9 +1,12 @@
 import {
   AudioModule,
-  RecordingPresets,
+  AudioQuality,
+  IOSOutputFormat,
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
+  type RecordingOptions,
 } from "expo-audio";
+import { File } from "expo-file-system";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Platform, type AppStateStatus } from "react-native";
 import { sendAudioSegment, startSession, stopSession } from "../services/api";
@@ -13,6 +16,67 @@ import { shareNoteToSystemNotes, upsertNoteFile } from "../services/notes";
 import type { SessionStatus } from "../types/session";
 
 const SEGMENT_MS = 30_000;
+
+/** WAV/PCM auf iOS – von Mistral zuverlässig dekodierbar. Android: AAC/M4A. */
+const RECORDING_OPTIONS: RecordingOptions =
+  Platform.OS === "ios"
+    ? {
+        extension: ".wav",
+        sampleRate: 16000,
+        numberOfChannels: 1,
+        bitRate: 256000,
+        android: {
+          extension: ".m4a",
+          outputFormat: "mpeg4",
+          audioEncoder: "aac",
+        },
+        ios: {
+          extension: ".wav",
+          outputFormat: IOSOutputFormat.LINEARPCM,
+          audioQuality: AudioQuality.HIGH,
+          linearPCMBitDepth: 16,
+          linearPCMIsBigEndian: false,
+          linearPCMIsFloat: false,
+        },
+        web: {
+          mimeType: "audio/wav",
+          bitsPerSecond: 128000,
+        },
+      }
+    : {
+        extension: ".m4a",
+        sampleRate: 44100,
+        numberOfChannels: 1,
+        bitRate: 128000,
+        android: {
+          extension: ".m4a",
+          outputFormat: "mpeg4",
+          audioEncoder: "aac",
+        },
+        ios: {
+          extension: ".m4a",
+          outputFormat: IOSOutputFormat.MPEG4AAC,
+          audioQuality: AudioQuality.HIGH,
+        },
+        web: {
+          mimeType: "audio/mp4",
+          bitsPerSecond: 128000,
+        },
+      };
+
+async function waitUntilFileReady(uri: string | null): Promise<string | null> {
+  if (!uri) return null;
+  const file = new File(uri);
+  let lastSize = -1;
+  for (let i = 0; i < 15; i++) {
+    if (file.exists && file.size > 0 && file.size === lastSize) {
+      return uri;
+    }
+    lastSize = file.exists ? file.size : -1;
+    await new Promise((r) => setTimeout(r, 120));
+  }
+  return file.exists && file.size > 0 ? uri : null;
+}
 
 function createSessionId() {
   return `s-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
@@ -87,7 +151,8 @@ export function useAufnahmeSession() {
     if (!recorder) return null;
     try {
       await recorder.stop();
-      return recorder.uri;
+      // Datei muss vollständig geschrieben sein, bevor wir hochladen
+      return waitUntilFileReady(recorder.uri);
     } catch {
       return null;
     }
@@ -130,7 +195,7 @@ export function useAufnahmeSession() {
       return false;
     }
 
-    const recorder = new AudioModule.AudioRecorder(RecordingPresets.HIGH_QUALITY);
+    const recorder = new AudioModule.AudioRecorder(RECORDING_OPTIONS);
     await recorder.prepareToRecordAsync();
     recorder.record();
     recorderRef.current = recorder;
