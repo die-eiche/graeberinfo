@@ -114,7 +114,7 @@ Du **extrahierst** nur explizit Gesagtes in die Schema-Felder. Keine Jahresergä
 - Nachname
 - Straße
 - PLZ Ort
-- E-Mail: immer mit \`@\` schreiben. Wenn diktiert „Name at Domain“ oder ASR nur Punkte liefert (\`name.gmail.com\`), als \`name@gmail.com\` eintragen.
+- E-Mail: immer mit \`@\` schreiben. Wenn diktiert „Name at Domain“ oder ASR nur Punkte liefert (\`name.gmail.com\`), als \`name@gmail.com\` eintragen. Local-Part an die bekannte Namensschreibung anpassen (Auftraggeber Meyer → \`…meyer…@…\`, nicht Meier).
 - „gestern / vorgestern / heute … Jahre geworden“ → **Verstorbener Geburtstag** (Tag/Monat vom Relativtag, Jahr = Jahr des Relativtags minus Alter). Niemals als Todestag.
 - Geburtstag → nur \`TT.MM.JJJJ\` (kein ISO \`JJJJ-MM-TT\`; unbekannter Tag als \`00.MM.JJJJ\`)
 - Todestag → Relativangaben (vorgestern/gestern/heute/morgen) anhand des mitgelieferten „Heute“-Datums als konkretes \`TT.MM.JJJJ\` ausgeben; bei nur Tag/Monat ohne Jahr: \`TT.MM.\` (Jahr ergänzt die App); immer deutsches Format \`TT.MM.JJJJ\`, niemals \`JJJJ-MM-TT\`

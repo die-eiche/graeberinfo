@@ -179,6 +179,20 @@ async function main() {
   const mailF = parseNoteFields(mailSnap.noteMarkdown);
   assert(mailF["Mieter E-Mail"] === "michael@angern.de", "Pipeline: Michael.angern.de → @");
 
+  const meyerMail = await runNotePipeline({
+    rawMarkdown: renderNoteMarkdown({
+      "Mieter Vorname": "Heinz",
+      "Mieter Nachname": "Meyer",
+      "Mieter E-Mail": "heinzmeier@web.de",
+    }),
+    transcript: "Auftraggeber Heinz Meyer. E-Mail heinzmeier at web.de.",
+    previousNote: emptyNoteMarkdown(),
+    now,
+    mode: "segment",
+  });
+  const meyerF = parseNoteFields(meyerMail.noteMarkdown);
+  assert(meyerF["Mieter E-Mail"] === "heinzmeyer@web.de", "Pipeline: Meyer-E-Mail nicht mit ei");
+
   // Geburt: erster Sonntag im Mai 1934 → Geburtstag, nicht TF
   const birthSnap = await runNotePipeline({
     rawMarkdown: renderNoteMarkdown({

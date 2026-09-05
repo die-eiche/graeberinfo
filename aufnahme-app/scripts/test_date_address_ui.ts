@@ -15,7 +15,11 @@ import {
   resolveWeekdayInMonth,
   formatGermanDate,
 } from "../src/services/relativeDates";
-import { normalizeEmailValue } from "../src/services/fieldEmails";
+import {
+  alignEmailLocalPartToKnownNames,
+  normalizeEmailValue,
+  normalizeNoteEmails,
+} from "../src/services/fieldEmails";
 import { clearUngroundedFields } from "../src/services/fieldGrounding";
 import { buildNoteTableRows } from "../src/services/discoveries";
 import {
@@ -204,6 +208,25 @@ assert(normalizeEmailValue("Michael@Angern DE") === "michael@angern.de", "getipp
 assert(normalizeEmailValue("Michael. angern.de") === "michael@angern.de", "Punkt statt @ + Leerzeichen");
 assert(normalizeEmailValue("Michael.angern.de") === "michael@angern.de", "Firmen-Domain drei Segmente");
 assert(normalizeEmailValue("Michael at Angern DE") === "michael@angern.de", "gesprochen at + DE");
+
+assert(
+  alignEmailLocalPartToKnownNames("heinzmeier@web.de", "Heinz", "Meyer") === "heinzmeyer@web.de",
+  "E-Mail Local-Part an Nachname Meyer angleichen"
+);
+assert(
+  alignEmailLocalPartToKnownNames("heinz.meier@web.de", "Heinz", "Meyer") === "heinz.meyer@web.de",
+  "E-Mail mit Punkt-Trenner an Meyer angleichen"
+);
+assert(
+  alignEmailLocalPartToKnownNames("info@web.de", "Heinz", "Meyer") === "info@web.de",
+  "fremde Local-Parts nicht an Namen zwingen"
+);
+const namedMail = normalizeNoteEmails({
+  "Mieter Vorname": "Heinz",
+  "Mieter Nachname": "Meyer",
+  "Mieter E-Mail": "heinzmeier@web.de",
+});
+assert(namedMail["Mieter E-Mail"] === "heinzmeyer@web.de", "Notiz: Meyer-E-Mail korrigiert Meier");
 
 
 const ageNow = new Date("2026-09-05T12:00:00");

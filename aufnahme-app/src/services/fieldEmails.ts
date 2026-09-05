@@ -150,15 +150,109 @@ export function normalizeEmailValue(raw: string): string {
   return value.toLowerCase();
 }
 
+/** Kleinbuchstaben ohne Umlaute/Diakritika für Namensvergleiche. */
+export function foldNameToken(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/ß/g, "ss")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+/**
+ * Phonetik-Faltung für deutsche Namensvarianten:
+ * Meyer/Meier/Maier/Mayer → gleiche Basis.
+ */
+export function foldGermanNamePhonetic(raw: string): string {
+  let s = foldNameToken(raw);
+  // Mehrfach ersetzen, Reihenfolge: längere Digraphen zuerst
+  s = s.replace(/ey/g, "ei").replace(/ay/g, "ai");
+  s = s.replace(/ck/g, "k");
+  return s;
+}
+
+export function germanNamesSoundAlike(a: string, b: string): boolean {
+  const fa = foldGermanNamePhonetic(a);
+  const fb = foldGermanNamePhonetic(b);
+  return Boolean(fa) && fa === fb;
+}
+
+function emailLocalSeparator(local: string): string {
+  if (local.includes(".")) return ".";
+  if (local.includes("_")) return "_";
+  if (local.includes("-")) return "-";
+  return "";
+}
+
+/**
+ * Richtet den Local-Part an bekannte Vor-/Nachnamen aus.
+ * „heinzmeier@web.de“ + Nachname Meyer → „heinzmeyer@web.de“.
+ * Andere Adressen (info@…, Firmenkürzel) bleiben unangetastet.
+ */
+export function alignEmailLocalPartToKnownNames(
+  email: string,
+  firstName: string,
+  lastName: string
+): string {
+  const trimmed = email.trim();
+  if (!trimmed.includes("@")) return trimmed;
+
+  const at = trimmed.indexOf("@");
+  const local = trimmed.slice(0, at);
+  const domain = trimmed.slice(at + 1);
+  if (!local || !domain) return trimmed;
+
+  const first = foldNameToken(firstName);
+  const last = foldNameToken(lastName);
+  if (!first && !last) return trimmed;
+
+  const localCompact = foldNameToken(local);
+  if (!localCompact) return trimmed;
+
+  const sep = emailLocalSeparator(local);
+
+  // vorname+nachname (mit/ohne Trenner), Nachname nur phonetisch falsch
+  if (first && last && localCompact.startsWith(first) && localCompact.length > first.length) {
+    const rest = localCompact.slice(first.length);
+    if (germanNamesSoundAlike(rest, last) && rest !== last) {
+      return `${first}${sep}${last}@${domain}`;
+    }
+    if (rest === last) return trimmed.toLowerCase();
+  }
+
+  // nur Nachname als Local-Part
+  if (last && germanNamesSoundAlike(localCompact, last) && localCompact !== last) {
+    return `${last}@${domain}`;
+  }
+
+  // nachname+vorname (selten, aber ASR/Modell vertauscht manchmal)
+  if (first && last && localCompact.startsWith(last) === false) {
+    // no-op
+  }
+  if (first && last && localCompact.endsWith(first) && localCompact.length > first.length) {
+    const head = localCompact.slice(0, localCompact.length - first.length);
+    if (germanNamesSoundAlike(head, last) && head !== last) {
+      return `${last}${sep}${first}@${domain}`;
+    }
+  }
+
+  return trimmed;
+}
+
 /** Normalisiert bekannte E-Mail-Felder in der Notiz. */
 export function normalizeNoteEmails(
   fields: Record<string, string>
 ): Record<string, string> {
   const next = { ...fields };
+  const firstName = (next["Mieter Vorname"] ?? "").trim();
+  const lastName = (next["Mieter Nachname"] ?? "").trim();
   for (const field of EMAIL_FIELDS) {
     const value = (next[field] ?? "").trim();
     if (!value) continue;
-    next[field] = normalizeEmailValue(value);
+    const normalized = normalizeEmailValue(value);
+    next[field] = alignEmailLocalPartToKnownNames(normalized, firstName, lastName);
   }
   return next;
 }
