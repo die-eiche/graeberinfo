@@ -209,8 +209,6 @@ export function applyRelativeDeathDateFromTranscript(
   for (const pattern of patterns) {
     const match = pattern.exec(text);
     if (!match) continue;
-    token = [match[1], match[2]].find((p) => p && p.toLowerCase() in RELATIVE_DAY_OFFSET || (p && resolveRelativeDateToken(p, now))) || null;
-    // pick the relative word from groups
     for (const g of match.slice(1)) {
       if (g && resolveRelativeDateToken(g, now)) {
         token = g;
@@ -224,18 +222,8 @@ export function applyRelativeDeathDateFromTranscript(
   const resolved = resolveRelativeDateToken(token, now);
   if (!resolved) return next;
 
-  // Nur setzen/überschreiben wenn leer, unsicher, Relativwort, oder offensichtlich falsch generiert
-  // (kein TT.MM.JJJJ) – bei bereits konkretem Datum nur überschreiben wenn current Relativwort war
-  if (!current || current === UNCERTAIN_MARK || resolveRelativeDateToken(current, now)) {
-    next["Verstorbener Todestag"] = resolved;
-  } else if (!/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(current)) {
-    next["Verstorbener Todestag"] = resolved;
-  }
-  // Wenn ein konkretes Datum da ist, das nicht zur Relativangabe passt: Transkript hat Vorrang
-  else {
-    // Transkript-Relativangabe hat Vorrang vor geratenem Kalenderdatum
-    next["Verstorbener Todestag"] = resolved;
-  }
+  // Transkript-Relativangabe hat Vorrang vor geratenem/falschem Kalenderdatum
+  next["Verstorbener Todestag"] = resolved;
   return next;
 }
 
