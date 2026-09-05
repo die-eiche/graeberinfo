@@ -68,11 +68,7 @@ export default function App() {
             {showTable ? (
               <NoteTable rows={rows} focusFields={focusFields} />
             ) : (
-              <View style={styles.placeholder}>
-                <Text style={styles.placeholderText}>
-                  Nach dem Start erscheinen die Felder live.
-                </Text>
-              </View>
+              <View style={styles.placeholder} />
             )}
           </View>
 
@@ -155,11 +151,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
-  },
-  placeholderText: {
-    color: "rgba(110,110,110,0.95)",
-    fontSize: 14,
-    textAlign: "center",
   },
   controls: {
     alignItems: "center",

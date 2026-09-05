@@ -7,8 +7,10 @@ import {
   enrichNoteDates,
   enrichPartialDate,
   resolveImpliedYear,
+  resolveNthWeekday,
   resolveRelativeDateToken,
 } from "../src/services/dateEnrichment";
+import { clearUngroundedFields } from "../src/services/fieldGrounding";
 import { buildNoteTableRows } from "../src/services/discoveries";
 import {
   extractUndertakerFromTranscript,
@@ -91,6 +93,46 @@ const grab = rows.find((r) => r.field === "Grab");
 const vor = rows.find((r) => r.field === "Mieter Vorname");
 assert(grab?.uncertain === true && grab.value === "", "Grab: roter Punkt, kein ?-Text");
 assert(vor?.value === "Thomas" && vor.uncertain === false, "Name normal sichtbar");
+
+
+assert(resolveNthWeekday("Sonntag", "after-next", now) === "13.09.2026", "übernächster Sonntag ab Sa 05.09. → 13.09.");
+assert(resolveNthWeekday("Sonntag", "next", now) === "06.09.2026", "nächster Sonntag ab Sa 05.09. → 06.09.");
+
+const tfFixed = enrichNoteDates(
+  { "TF-Wunschtermin": "09.09.2026" },
+  now,
+  "Trauerfeier am übernächsten Sonntag, also den 13."
+);
+assert(tfFixed["TF-Wunschtermin"] === "13.09.2026", "übernächster Sonntag überschreibt 09.09.");
+
+assert(
+  !clearUngroundedFields(
+    { Grab: "?", Urne: "?", "Verstorbener Vorname": "Anna" },
+    "Die Verstorbene ist vorgestern verstorben, Bestatter Söhnlein, übernächsten Sonntag den 13."
+  )["Grab"],
+  "Grab ohne Erwähnung entfernt"
+);
+assert(
+  !clearUngroundedFields(
+    { Grab: "?", Urne: "Patera gold", "Verstorbener Vorname": "Anna" },
+    "Die Verstorbene ist vorgestern verstorben, Bestatter Söhnlein."
+  )["Urne"],
+  "Urne ohne Erwähnung entfernt"
+);
+assert(
+  !clearUngroundedFields(
+    { "Verstorbener Vorname": "Anna" },
+    "Die Verstorbene ist vorgestern verstorben."
+  )["Verstorbener Vorname"],
+  "Anna ohne Erwähnung entfernt"
+);
+assert(
+  clearUngroundedFields(
+    { Grab: "2.01.01.01", Urne: "Patera gold" },
+    "Grab 2.01.01.01 und Urne Patera gold"
+  )["Grab"] === "2.01.01.01",
+  "Grab mit Erwähnung bleibt"
+);
 
 if (failed) {
   console.error(`\n${failed} fehlgeschlagen`);

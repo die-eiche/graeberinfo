@@ -228,6 +228,118 @@ export function applyRelativeDeathDateFromTranscript(
 }
 
 
+
+const WEEKDAY_INDEX: Record<string, number> = {
+  sonntag: 0,
+  montag: 1,
+  dienstag: 2,
+  mittwoch: 3,
+  donnerstag: 4,
+  freitag: 5,
+  samstag: 6,
+};
+
+/** Nächster / übernächster Wochentag relativ zu now (JS: So=0). */
+export function resolveNthWeekday(
+  weekdayName: string,
+  which: "next" | "after-next" | "this",
+  now = new Date()
+): string {
+  const key = weekdayName
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^a-z]/g, "");
+  const target = WEEKDAY_INDEX[key];
+  if (target === undefined) {
+    throw new Error(`Unbekannter Wochentag: ${weekdayName}`);
+  }
+  const current = now.getDay();
+  let delta = (target - current + 7) % 7;
+  if (which === "next") {
+    if (delta === 0) delta = 7;
+  } else if (which === "after-next") {
+    if (delta === 0) delta = 14;
+    else delta += 7;
+  }
+  // which === "this": delta===0 bleibt heute
+  return formatGermanDate(addDays(now, delta));
+}
+
+/**
+ * Löst TF-Wunschtermin aus Transkript:
+ * „übernächsten Sonntag“, „nächsten Freitag“, „also den 13.“ usw.
+ * Überschreibt falsche KI-Daten, wenn eine klare Angabe erkennbar ist.
+ */
+export function applyRelativeTfDateFromTranscript(
+  fields: Record<string, string>,
+  transcript: string,
+  now = new Date()
+): Record<string, string> {
+  const next = { ...fields };
+  const text = transcript.replace(/\s+/g, " ");
+
+  // Expliziter Tag im Monat, oft nach „also den 13.“
+  const dayOnly = /\b(?:also\s+)?(?:am|den|zum)\s+(\d{1,2})\.?(?:\s|$)/i.exec(text);
+  // „übernächste[n|r|m]? Sonntag“
+  const afterNext = /\b(?:am\s+)?(?:übernächste[nrms]?|uebernächste[nrms]?|uebernaechste[nrms]?)\s+(Sonntag|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag)\b/i.exec(
+    text
+  );
+  const nextWd = /\b(?:am\s+)?(?:nächste[nrms]?|kommende[nrms]?)\s+(Sonntag|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag)\b/i.exec(
+    text
+  );
+  const thisWd = /\b(?:an?\s+)?diese[nrms]?\s+(Sonntag|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag)\b/i.exec(
+    text
+  );
+
+  let resolved: string | null = null;
+  if (afterNext?.[1]) {
+    resolved = resolveNthWeekday(afterNext[1], "after-next", now);
+  } else if (nextWd?.[1]) {
+    resolved = resolveNthWeekday(nextWd[1], "next", now);
+  } else if (thisWd?.[1]) {
+    resolved = resolveNthWeekday(thisWd[1], "this", now);
+  }
+
+  // „den 13.“ bestätigt / setzt Tag – wenn Wochentag schon resolved und Tag passt: ok;
+  // wenn nur Tag genannt: Tag im aktuellen/nächsten Monat
+  if (dayOnly?.[1]) {
+    const day = Number(dayOnly[1]);
+    if (day >= 1 && day <= 31) {
+      if (resolved) {
+        // Wenn Wochentag-Auflösung denselben Tag hat → behalten; sonst Tag aus „den 13.“ bevorzugen
+        const resolvedDay = Number(resolved.split(".")[0]);
+        if (resolvedDay !== day) {
+          const month = now.getMonth();
+          const year = now.getFullYear();
+          let candidate = new Date(year, month, day);
+          if (candidate.getTime() < new Date(year, month, now.getDate()).getTime()) {
+            candidate = new Date(year, month + 1, day);
+          }
+          resolved = formatGermanDate(candidate);
+        }
+      } else {
+        const month = now.getMonth();
+        const year = now.getFullYear();
+        let candidate = new Date(year, month, day);
+        if (candidate.getDate() !== day) {
+          // ungültiger Tag im Monat
+          candidate = new Date(year, month + 1, day);
+        }
+        if (candidate.getTime() < new Date(year, month, now.getDate()).getTime()) {
+          candidate = new Date(year, month + 1, day);
+        }
+        resolved = formatGermanDate(candidate);
+      }
+    }
+  }
+
+  if (!resolved) return next;
+  next["TF-Wunschtermin"] = resolved;
+  return next;
+}
+
+
 const DATE_FIELDS = ["Verstorbener Todestag", "TF-Wunschtermin"] as const;
 
 /** Wendet Jahres-/Datums-Ergänzung auf Notizfelder an. */
@@ -244,6 +356,7 @@ export function enrichNoteDates(
   }
   if (transcript.trim()) {
     next = applyRelativeDeathDateFromTranscript(next, transcript, now);
+    next = applyRelativeTfDateFromTranscript(next, transcript, now);
   }
   return next;
 }

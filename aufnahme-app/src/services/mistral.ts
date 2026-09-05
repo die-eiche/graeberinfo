@@ -4,6 +4,7 @@ import { getApiKey } from "./apiKey";
 import { emptyNoteMarkdown, mergeNoteMarkdown, renderNoteMarkdown, titleFromMieter } from "./noteMerge";
 import { enrichNoteDates } from "./dateEnrichment";
 import { rescueMisplacedFields } from "./fieldRescue";
+import { clearUngroundedFields } from "./fieldGrounding";
 import { applySameAddressFromTenant } from "./addressInference";
 import { enrichNotePostalCodes } from "./postalCode";
 import { parseNoteFields } from "./discoveries";
@@ -47,6 +48,7 @@ async function finalizeNote(
   let fields = parseNoteFields(merged);
   fields = enrichNoteDates(fields, new Date(), transcript);
   fields = rescueMisplacedFields(fields, transcript);
+  fields = clearUngroundedFields(fields, transcript);
   fields = applySameAddressFromTenant(fields, transcript);
   merged = renderNoteMarkdown(fields);
   const withPlz = await enrichNotePostalCodes(merged);
@@ -123,7 +125,8 @@ export async function extractFromTranscript(
     "Verwandtschaftsverhältnis nur echte Beziehungswörter (Sohn, Tochter, Ehefrau, …).",
     "Relativdaten: vorgestern/gestern/heute anhand „Heute …“ als konkretes TT.MM.JJJJ in Verstorbener Todestag.",
     "Todestag und TF-Wunschtermin: wenn nur Tag/Monat ohne Jahr → Tag.Monat. ohne Jahr schreiben (Jahr ergänzt die App).",
-    "Unklare, aber angesprochene Angaben (inkl. unverstandene Grabnummer) als genau ? ausgeben.",
+    "Nur explizit Gesagtes – keine erfundenen Namen/Grab/Urne. ? nur wenn das Feld wirklich angesprochen und unklar ist.",
+    "Relativtermine: übernächsten Sonntag / „also den 13.“ anhand Heute als konkretes TT.MM.JJJJ in TF-Wunschtermin.",
     "Gib Titel + vollständige Tabelle aus.",
   ].join("\n");
 
@@ -284,7 +287,8 @@ export async function reviewNoteFromFullTranscript(
     "Verwandtschaftsverhältnis nur echte Beziehungswörter (Sohn, Tochter, Ehefrau, …).",
     "Relativdaten: vorgestern/gestern/heute anhand „Heute …“ als konkretes TT.MM.JJJJ in Verstorbener Todestag (falsche Kalenderdaten überschreiben).",
     "Todestag / TF-Wunschtermin ohne Jahr: nur Tag.Monat. schreiben (Jahr ergänzt die App).",
-    "Unklare, aber angesprochene Felder als genau ?.",
+    "Nur explizit Gesagtes – keine erfundenen Namen/Grab/Urne. ? nur wenn das Feld wirklich angesprochen und unklar ist.",
+    "Relativtermine: übernächsten Sonntag / „also den 13.“ anhand Heute als konkretes TT.MM.JJJJ in TF-Wunschtermin.",
     "Gib Titel + vollständige Tabelle mit dem korrigierten Gesamtstand aus.",
   ].join("\n");
 
