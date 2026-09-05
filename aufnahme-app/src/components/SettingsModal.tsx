@@ -29,10 +29,20 @@ export function SettingsModal({ visible, onClose }: Props) {
   }, [visible]);
 
   const save = async () => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setSaved(false);
+      setError("Bitte einen Schlüssel eintragen.");
+      return;
+    }
     try {
-      await setApiKey(value);
+      await setApiKey(trimmed);
       setSaved(true);
       setError(null);
+      // Fenster nach kurzer Bestätigung automatisch schließen
+      setTimeout(() => {
+        onClose();
+      }, 600);
     } catch {
       setError("Speichern fehlgeschlagen.");
     }
@@ -40,8 +50,8 @@ export function SettingsModal({ visible, onClose }: Props) {
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.backdrop}>
-        <View style={styles.card}>
+      <Pressable style={styles.backdrop} onPress={onClose}>
+        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
           <Text style={styles.title}>Einstellungen</Text>
           <Text style={styles.help}>
             Hier den gemeinsamen Mistral-Schlüssel einmal eintragen. Er bleibt auf
@@ -57,15 +67,13 @@ export function SettingsModal({ visible, onClose }: Props) {
             secureTextEntry
             style={styles.input}
           />
-          {saved ? <Text style={styles.ok}>Gespeichert.</Text> : null}
+          {saved ? <Text style={styles.ok}>Gespeichert. Fenster schließt…</Text> : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <GlassButton label="Speichern" onPress={() => void save()} tone="active" />
           <View style={{ height: 12 }} />
-          <Pressable onPress={onClose}>
-            <Text style={styles.close}>Schließen</Text>
-          </Pressable>
-        </View>
-      </View>
+          <GlassButton label="Schließen" onPress={onClose} tone="neutral" />
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }
@@ -112,11 +120,5 @@ const styles = StyleSheet.create({
   error: {
     color: colors.danger,
     marginBottom: 10,
-  },
-  close: {
-    color: colors.subtle,
-    textAlign: "center",
-    paddingVertical: 8,
-    fontSize: 16,
   },
 });
