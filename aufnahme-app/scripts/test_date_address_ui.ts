@@ -10,6 +10,7 @@ import {
   resolveNthWeekday,
   resolveRelativeDateToken,
 } from "../src/services/dateEnrichment";
+import { normalizeEmailValue } from "../src/services/fieldEmails";
 import { clearUngroundedFields } from "../src/services/fieldGrounding";
 import { buildNoteTableRows } from "../src/services/discoveries";
 import {
@@ -139,6 +140,20 @@ assert(
   )["Grab"] === "2.01.01.01",
   "Grab mit Erwähnung bleibt"
 );
+
+
+assert(normalizeEmailValue("max.mustermann.gmail.com") === "max.mustermann@gmail.com", "E-Mail Punkt→@ bei gmail");
+assert(normalizeEmailValue("info at web.de") === "info@web.de", "E-Mail at → @");
+assert(normalizeEmailValue("a.b@gmx.de") === "a.b@gmx.de", "E-Mail mit @ bleibt");
+
+const ageNow = new Date("2026-09-05T12:00:00");
+const ageFields = enrichNoteDates(
+  { "Verstorbener Geburtstag": "00.09.2026", "Verstorbener Todestag": "04.09.2026" },
+  ageNow,
+  "Die Verstorbene ist gestern 84 geworden."
+);
+assert(ageFields["Verstorbener Geburtstag"] === "04.09.1942", "gestern 84 geworden → Geburtstag 04.09.1942");
+assert(!ageFields["Verstorbener Todestag"], "kein Todestag aus geworden-Phrase");
 
 if (failed) {
   console.error(`\n${failed} fehlgeschlagen`);

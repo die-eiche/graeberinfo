@@ -151,6 +151,23 @@ async function main() {
   const lf = parseNoteFields(lastNameFix.noteMarkdown);
   assert(lf["Mieter Nachname"] === "Meier", "Korrektur: Nachname Berger → Meier");
 
+
+  const ageSnap = await runNotePipeline({
+    rawMarkdown: renderNoteMarkdown({
+      "Verstorbener Geburtstag": "00.09.2026",
+      "Verstorbener Todestag": "04.09.2026",
+      "Mieter E-Mail": "max.mustermann.gmail.com",
+    }),
+    transcript: "Die Verstorbene ist gestern 84 geworden. E-Mail max.mustermann.gmail.com",
+    previousNote: emptyNoteMarkdown(),
+    now: new Date("2026-09-05T12:00:00"),
+    mode: "segment",
+  });
+  const ageF = parseNoteFields(ageSnap.noteMarkdown);
+  assert(ageF["Verstorbener Geburtstag"] === "04.09.1942", "Pipeline: gestern 84 geworden → Geburtstag");
+  assert(!ageF["Verstorbener Todestag"], "Pipeline: Todestag nicht aus geworden");
+  assert(ageF["Mieter E-Mail"] === "max.mustermann@gmail.com", "Pipeline: E-Mail Punkt→@");
+
 if (failed) {
     console.error(`\n${failed} fehlgeschlagen`);
     process.exit(1);

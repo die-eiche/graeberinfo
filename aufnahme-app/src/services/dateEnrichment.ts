@@ -226,8 +226,12 @@ export function applyRelativeDeathDateFromTranscript(
   const next = { ...fields };
   const current = (next["Verstorbener Todestag"] ?? "").trim();
 
-  // Feldwert selbst ist Relativwort
-  if (current) {
+  const text = transcript.replace(/\s+/g, " ");
+  const birthdayAgeContext = /\b\d{1,3}\s*(?:Jahre?(?:n)?\s+)?(?:alt\s+)?geworden\b/i.test(text)
+    || /\b(vorgestern|gestern|heute)\b[^.!?]{0,40}\b(geburtstag|geboren)\b/i.test(text);
+
+  // Feldwert selbst ist Relativwort – nicht bei Alters-/Geburtstagskontext
+  if (current && !birthdayAgeContext) {
     const resolved = resolveRelativeDateToken(current, now);
     if (resolved) {
       next["Verstorbener Todestag"] = resolved;
@@ -235,7 +239,6 @@ export function applyRelativeDeathDateFromTranscript(
     }
   }
 
-  const text = transcript.replace(/\s+/g, " ");
   const patterns = [
     /\b(vorgestern|gestern|heute|morgen|übermorgen|uebermorgen)\b[^.!?]{0,40}\b(verstorben|gestorben|todestag)\b/i,
     /\b(verstorben|gestorben|todestag)\b[^.!?]{0,40}\b(vorgestern|gestern|heute|morgen|übermorgen|uebermorgen)\b/i,
@@ -258,6 +261,9 @@ export function applyRelativeDeathDateFromTranscript(
   }
 
   if (!token) return next;
+  if (birthdayAgeContext && !transcriptHasExplicitDeath(text)) {
+    return next;
+  }
   const resolved = resolveRelativeDateToken(token, now);
   if (!resolved) return next;
 
@@ -379,6 +385,89 @@ export function applyRelativeTfDateFromTranscript(
 }
 
 
+/**
+ * „gestern 84 geworden“ / „84 geworden gestern“ → Verstorbener Geburtstag.
+ * Jahrestag = Relativtag; Geburtsjahr = Jahrestag.Jahr − Alter.
+ * Fälschlich auf denselben Kalendertag gesetzter Todestag wird entfernt,
+ * wenn im Transkript kein echter Todesbeleg steht.
+ */
+export function applyBirthdayFromAgeInTranscript(
+  fields: Record<string, string>,
+  transcript: string,
+  now = new Date()
+): Record<string, string> {
+  const next = { ...fields };
+  const text = transcript.replace(/\s+/g, " ").trim();
+  if (!text) return next;
+
+  const patterns: RegExp[] = [
+    /\b(vorgestern|gestern|heute)\b[^.!?]{0,48}?\b(\d{1,3})\s*(?:Jahre?(?:n)?\s+)?(?:alt\s+)?geworden\b/gi,
+    /\b(\d{1,3})\s*(?:Jahre?(?:n)?\s+)?(?:alt\s+)?geworden\b[^.!?]{0,48}?\b(vorgestern|gestern|heute)\b/gi,
+    /\b(vorgestern|gestern|heute)\b[^.!?]{0,24}?\b(\d{1,3})\.?\s*(?:Geburtstag|Geburtstag)\b/gi,
+    /\bwäre?\s+(?:sie|er)\s+(vorgestern|gestern|heute)\s+(\d{1,3})\s*(?:Jahre?(?:n)?)?\s*(?:alt\s+)?geworden\b/gi,
+  ];
+
+  let relativeToken: string | null = null;
+  let age: number | null = null;
+
+  for (const pattern of patterns) {
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(text))) {
+      const g1 = match[1] ?? "";
+      const g2 = match[2] ?? "";
+      const rel = /\d/.test(g1) ? g2 : g1;
+      const ageRaw = /\d/.test(g1) ? g1 : g2;
+      const parsedAge = Number(ageRaw);
+      if (!resolveRelativeDateToken(rel, now)) continue;
+      if (!Number.isFinite(parsedAge) || parsedAge < 1 || parsedAge > 120) continue;
+      relativeToken = rel;
+      age = parsedAge;
+    }
+  }
+
+  if (!relativeToken || age == null) return next;
+
+  const anniversary = (() => {
+    const key = relativeToken
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .replace(/[^a-z]/g, "");
+    const offset = RELATIVE_DAY_OFFSET[key];
+    if (offset === undefined) return null;
+    return addDays(now, offset);
+  })();
+  if (!anniversary) return next;
+
+  const birthYear = anniversary.getFullYear() - age;
+  const birthday = toGermanDateFormat(
+    anniversary.getDate(),
+    anniversary.getMonth() + 1,
+    birthYear
+  );
+  next["Verstorbener Geburtstag"] = birthday;
+
+  const anniversaryDe = formatGermanDate(anniversary);
+  const death = (next["Verstorbener Todestag"] ?? "").trim();
+  if (death && (death === anniversaryDe || resolveRelativeDateToken(death, now) === anniversaryDe)) {
+    if (!transcriptHasExplicitDeath(text)) {
+      delete next["Verstorbener Todestag"];
+    }
+  }
+
+  return next;
+}
+
+/** Todesbeleg außerhalb von „X geworden“-/Geburtstag-Kontext. */
+function transcriptHasExplicitDeath(transcript: string): boolean {
+  const stripped = transcript
+    .replace(/\b(vorgestern|gestern|heute)\b[^.!?]{0,48}?\b\d{1,3}\s*(?:Jahre?(?:n)?\s+)?(?:alt\s+)?geworden\b/gi, " ")
+    .replace(/\b\d{1,3}\s*(?:Jahre?(?:n)?\s+)?(?:alt\s+)?geworden\b[^.!?]{0,48}?\b(vorgestern|gestern|heute)\b/gi, " ");
+  return /\b(verstorben|gestorben|todestag|tot\s+aufgefunden|verstorben\s+am)\b/i.test(stripped);
+}
+
+
 const DATE_FIELDS = [
   "Verstorbener Geburtstag",
   "Verstorbener Todestag",
@@ -398,6 +487,8 @@ export function enrichNoteDates(
     next[field] = enrichPartialDate(value, now);
   }
   if (transcript.trim()) {
+    // Alter+Relativtag zuerst (sonst landet „gestern 84 geworden“ fälschlich im Todestag)
+    next = applyBirthdayFromAgeInTranscript(next, transcript, now);
     next = applyRelativeDeathDateFromTranscript(next, transcript, now);
     next = applyRelativeTfDateFromTranscript(next, transcript, now);
   }

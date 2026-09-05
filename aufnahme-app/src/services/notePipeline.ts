@@ -20,6 +20,7 @@ import { enrichNoteDates } from "./dateEnrichment";
 import { parseNoteFields } from "./discoveries";
 import { clearUngroundedFields } from "./fieldGrounding";
 import { applySpokenCorrections } from "./fieldCorrections";
+import { normalizeNoteEmails } from "./fieldEmails";
 import { rescueMisplacedFields } from "./fieldRescue";
 import {
   emptyNoteMarkdown,
@@ -116,6 +117,9 @@ export async function runNotePipeline(input: NotePipelineInput): Promise<NoteSna
 
   // 6) Gesprochene Korrekturen (nicht X sondern Y) – gewinnen gegen Altbestand und Modell-Wiederholung
   fields = applySpokenCorrections(fields, transcript);
+
+  // E-Mail: ASR „at“/Punkt → @
+  fields = normalizeNoteEmails(fields);
 
   // 6b) Nach Korrekturen Datumsfelder nochmals anreichern (z. B. „gestern“ → TT.MM.JJJJ)
   fields = enrichNoteDates(fields, now, "");
