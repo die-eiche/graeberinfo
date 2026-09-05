@@ -13,8 +13,12 @@ export function NoteTable({ rows, focusFields, title }: Props) {
   const focusKey = focusFields.join("|");
 
   useEffect(() => {
-    if (!focusFields.length) return;
-    const index = rows.findIndex((row) => focusFields.includes(row.field));
+    const targets = [
+      ...focusFields,
+      ...rows.filter((r) => r.uncertain).map((r) => r.field),
+    ];
+    if (!targets.length) return;
+    const index = rows.findIndex((row) => targets.includes(row.field));
     if (index < 0) return;
     const t = setTimeout(() => {
       try {
@@ -38,6 +42,7 @@ export function NoteTable({ rows, focusFields, title }: Props) {
         </Text>
       ) : null}
       <View style={styles.head}>
+        <View style={styles.dotCol} />
         <Text style={[styles.headCell, styles.fieldCol]}>Feld</Text>
         <Text style={[styles.headCell, styles.valueCol]}>Wert</Text>
       </View>
@@ -56,20 +61,18 @@ export function NoteTable({ rows, focusFields, title }: Props) {
           }, 100);
         }}
         renderItem={({ item }) => {
-          const highlighted = focusFields.includes(item.field);
+          const highlighted = focusFields.includes(item.field) || item.uncertain;
           const filled = Boolean(item.value);
           return (
-            <View
-              style={[
-                styles.row,
-                highlighted ? styles.rowFocus : null,
-              ]}
-            >
+            <View style={[styles.row, highlighted ? styles.rowFocus : null]}>
+              <View style={styles.dotCol}>
+                {item.uncertain ? <View style={styles.dot} /> : null}
+              </View>
               <Text
                 style={[
                   styles.field,
                   styles.fieldCol,
-                  filled ? styles.textFilled : styles.textEmpty,
+                  filled || item.uncertain ? styles.textFilled : styles.textEmpty,
                 ]}
                 numberOfLines={2}
               >
@@ -106,6 +109,7 @@ const styles = StyleSheet.create({
   },
   head: {
     flexDirection: "row",
+    alignItems: "center",
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(255,255,255,0.18)",
     paddingBottom: 6,
@@ -130,12 +134,23 @@ const styles = StyleSheet.create({
   rowFocus: {
     backgroundColor: "rgba(255,255,255,0.06)",
   },
+  dotCol: {
+    width: 14,
+    paddingTop: 4,
+    alignItems: "center",
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#FF453A",
+  },
   fieldCol: {
-    width: "48%",
+    width: "46%",
     paddingRight: 8,
   },
   valueCol: {
-    width: "52%",
+    width: "50%",
   },
   field: {
     fontSize: 12,

@@ -37,15 +37,24 @@ export type NoteFieldName = (typeof NOTE_FIELDS)[number];
 export type NoteTableRow = {
   field: string;
   value: string;
+  /** Genannt, aber nicht eindeutig → roter Punkt in der UI. */
+  uncertain: boolean;
 };
+
+const UNCERTAIN_VALUE = "?";
 
 /** Baut die volle Tabelle inkl. leerer Felder. */
 export function buildNoteTableRows(noteMarkdown: string): NoteTableRow[] {
   const values = parseNoteFields(noteMarkdown);
-  return NOTE_FIELDS.map((field) => ({
-    field,
-    value: values[field] ?? "",
-  }));
+  return NOTE_FIELDS.map((field) => {
+    const raw = values[field] ?? "";
+    const uncertain = raw === UNCERTAIN_VALUE;
+    return {
+      field,
+      value: uncertain ? "" : raw,
+      uncertain,
+    };
+  });
 }
 
 /** Parst die Markdown-Tabelle `| Feld | Wert |` in ein Map. */

@@ -35,6 +35,24 @@ Aus dem Beratungsgespräch extrahierst du ausschließlich formularrelevante Fakt
 1. Bestattungsfall (Verstorbener vorhanden): Mieter- und Verstorbenen-Felder füllen, soweit eindeutig genannt.
 2. Vorsorge / Buchung für später / für sich selbst: Abschnitt „Verstorbener“ vollständig leer lassen.
 
+## Mieter vs. Gesprächspartner (wichtig)
+- Eine Person, die sich nur vorstellt (z. B. „Ich bin der Sohn …“), ist **nicht automatisch der Mieter**.
+- Mieter-Felder nur füllen, wenn klar ist, **wer den Vertrag / die Grabnutzung mietet bzw. als Mieter genannt wird**.
+- Nennt sich jemand als Verwandter (Sohn, Tochter, Ehepartner, …) und benennt danach eine andere Person als Mieter: **diese andere Person ist der Mieter**; die sich vorstellende Person gehört ggf. nur ins Verwandtschaftsverhältnis, nicht in Mieter Vorname/Nachname.
+- **Korrekturen überschreiben immer** den bisherigen Mieter-Stand. Frühere Fehlzuordnungen (z. B. Sohn fälschlich als Mieter) müssen ersetzt werden, sobald der echte Mieter klar genannt wird.
+- Solange unklar ist, wer Mieter ist: Mieter-Felder leer lassen oder mit „?“ markieren (siehe Unsicherheit).
+
+## Unsicherheit
+- Wenn ein Feld **angesprochen** wurde, der Wert aber **nicht eindeutig** ist (mehrere Möglichkeiten, unklare Zuordnung, nur angedeutet): setze den Zellenwert genau auf \`?\`.
+- \`?\` bedeutet: genannt, aber nicht sicher identifiziert. **Nicht raten.**
+- Sobald der Wert später eindeutig wird: \`?\` durch den klaren Wert ersetzen.
+
+## Grabnummern ohne gesprochene Punkte
+- Grabnummern folgen dem Muster: **1 Ziffer**, dann Gruppen aus **je 2 Ziffern**, getrennt durch Punkte.
+  Beispiele: \`2.01.01.01\` (4 Gruppen) oder \`2.01.01.01.04\` (5 Gruppen).
+- Werden die Punkte nicht mitgesprochen (z. B. „zwei null eins null eins null eins“ / „2 01 01 01“ / „2010101“): **Punkte ergänzen** nach dem Muster oben.
+- Danach muss die Nummer **exakt** in der offiziellen Gräberliste stehen. Sonst \`?\` (nicht erfinden, keine „ähnliche“ Nummer wählen).
+
 ## Schema und Feldregeln
 
 ### Mieter
@@ -62,7 +80,7 @@ Aus dem Beratungsgespräch extrahierst du ausschließlich formularrelevante Fakt
 ### Sonstiges
 - Bestatter
 - Bestatter-Aufwand
-- Grab → nur exakte Grabnummer im Punkteformat (z. B. „1.01.01.04“ oder „1.06.20.06.01“). Keine Umschreibungen. Ungültige/unsichere Nummern leer lassen. Details siehe Abschnitt „Zulässige / bevorzugte Werte“.
+- Grab → Punkteformat erzwingen (1+2+2+2 bzw. 1+2+2+2+2). Punkte ggf. ergänzen. Nur exakte Listen-Treffer; unsicher → \`?\`. Details im Abschnitt „Zulässige / bevorzugte Werte“.
 - Urne
 - TF-Wunschtermin (Trauerfeier) → Freitext, nur wenn genannt
 - TF-Ideen (Trauerfeier) → Freitext, nur wenn genannt
@@ -112,6 +130,7 @@ Aufnahme
 - Bei jedem Aufruf den vollständigen aktuellen Kenntnisstand ausgeben (Merge über bisherige Abschnitte).
 - Bereits erkannte Werte beibehalten, sofern sie nicht später korrigiert wurden.
 - Leere Werte als leere Zellen lassen (nicht „unbekannt“, nicht „-“, nicht „n/a“, nicht „keine Angabe“).
+- Unsichere, aber angesprochene Felder genau mit \`?\` belegen (nicht mit geratenen Werten).
 - Keine zusätzlichen Felder, Spalten, Kommentare, Einleitungen, Zusammenfassungen oder Hinweise.
 - Keine Markdown-Codefence um die Ausgabe.`;
 

@@ -13,6 +13,9 @@ const GRAVE_SET = new Set(catalog.graeber);
 const URN_LIST = catalog.urnen;
 const UNDERTAKER_LIST = catalog.bestatter;
 
+/** Marker in der Markdown-Zelle für „genannt, aber nicht eindeutig“. */
+export const UNCERTAIN_MARK = "?";
+
 export function getAllowedUrns(): string[] {
   return URN_LIST;
 }
@@ -37,7 +40,7 @@ function normalizeKey(value: string): string {
 /** Leichte Schreibweisen-Korrektur; ohne Treffer Original behalten. */
 export function softMatchAllowed(value: string, allowed: string[]): string {
   const raw = value.trim();
-  if (!raw) return "";
+  if (!raw || raw === UNCERTAIN_MARK) return raw;
   const exact = allowed.find((item) => item === raw);
   if (exact) return exact;
   const key = normalizeKey(raw);
@@ -50,6 +53,45 @@ export function softMatchAllowed(value: string, allowed: string[]): string {
   return contains || raw;
 }
 
+/**
+ * Formatiert Ziffernfolgen als Grabnummer:
+ * 1 Ziffer + Gruppen à 2 Ziffern → z. B. 2010101 → 2.01.01.01
+ */
+export function formatGraveDigits(digits: string): string | null {
+  if (!/^\d+$/.test(digits)) return null;
+  if (digits.length === 7) {
+    return `${digits[0]}.${digits.slice(1, 3)}.${digits.slice(3, 5)}.${digits.slice(5, 7)}`;
+  }
+  if (digits.length === 9) {
+    return `${digits[0]}.${digits.slice(1, 3)}.${digits.slice(3, 5)}.${digits.slice(5, 7)}.${digits.slice(7, 9)}`;
+  }
+  return null;
+}
+
+/**
+ * Normalisiert eine Grab-Angabe:
+ * - Punkte ergänzen, wenn nur Ziffern/gesprochene Gruppen kommen
+ * - nur exakte Listen-Treffer behalten
+ * - sonst "?" (genannt, aber nicht eindeutig/gültig)
+ */
+export function normalizeGraveValue(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  if (trimmed === UNCERTAIN_MARK) return UNCERTAIN_MARK;
+
+  const alreadyDotted = /^\d(\.\d{2}){3,4}$/.test(trimmed);
+  if (alreadyDotted) {
+    return GRAVE_SET.has(trimmed) ? trimmed : UNCERTAIN_MARK;
+  }
+
+  const digits = trimmed.replace(/\D/g, "");
+  if (!digits) return UNCERTAIN_MARK;
+
+  const formatted = formatGraveDigits(digits);
+  if (!formatted) return UNCERTAIN_MARK;
+  return GRAVE_SET.has(formatted) ? formatted : UNCERTAIN_MARK;
+}
+
 function setTableField(markdown: string, field: string, value: string): string {
   const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const pattern = new RegExp(`^(\\|\\s*${escaped}\\s*\\|\\s*)(.*?)(\\s*\\|)$`, "m");
@@ -60,7 +102,7 @@ function setTableField(markdown: string, field: string, value: string): string {
 /**
  * Nach der KI-Auswertung:
  * - Urne / Bestatter: Schreibweise an Liste anlehnen, andere Werte erlaubt
- * - Grab: nur exakte Treffer aus der Gräberliste; sonst leeren
+ * - Grab: Punkte ergänzen, nur exakte Listen-Treffer; sonst "?"
  */
 export function applyAllowedValueRules(noteMarkdown: string): string {
   const fields = parseNoteFields(noteMarkdown);
@@ -78,8 +120,7 @@ export function applyAllowedValueRules(noteMarkdown: string): string {
 
   const grave = fields["Grab"];
   if (grave) {
-    const trimmed = grave.trim();
-    next = setTableField(next, "Grab", isAllowedGrave(trimmed) ? trimmed : "");
+    next = setTableField(next, "Grab", normalizeGraveValue(grave));
   }
 
   return next;
@@ -94,16 +135,20 @@ export function buildAllowedValuesPromptSection(): string {
 ### Urne (Schreibweisen-Orientierung)
 Bevorzuge eine der folgenden Schreibweisen, wenn erkennbar dieselbe Urne gemeint ist.
 Andere Urnenangaben sind erlaubt, wenn sie eindeutig genannt werden und nicht zur Liste passen.
+Unklar → \`?\`.
 ${urnLines}
 
 ### Bestatter (Schreibweisen-Orientierung)
 Bevorzuge eine der folgenden Schreibweisen, wenn erkennbar derselbe Bestatter gemeint ist.
 Andere Bestatter sind erlaubt, wenn sie eindeutig genannt werden und nicht zur Liste passen.
+Unklar → \`?\`.
 ${undertakerLines}
 
-### Grab (streng)
-- Nur eine Grabnummer übernehmen, die exakt so genannt wurde und im Format mit Punkten vorliegt (z. B. „1.01.01.04“ oder „1.06.20.06.01“).
+### Grab (streng, Punkte ggf. ergänzen)
+- Muster: erste Gruppe **1 Ziffer**, alle weiteren Gruppen **2 Ziffern**, mit Punkten (z. B. \`2.01.01.01\` oder \`2.01.01.01.04\`).
+- Wenn Punkte nicht mitgesprochen wurden: Punkte nach diesem Muster ergänzen.
+- Danach nur übernehmen, wenn die Nummer **exakt** in der offiziellen Gräberliste vorkommt.
 - Keine Umschreibungen, keine Näherungen, keine „ähnlichen“ Nummern.
-- Wenn die genannte Grabnummer nicht eindeutig und exakt ist: Feld Grab leer lassen.
-- Die App prüft Grabnummern zusätzlich gegen die offizielle Gräberliste und verwirft Nicht-Treffer.`;
+- Nicht eindeutig / nicht in der Liste → Zellenwert genau \`?\`.
+- Die App prüft Grabnummern zusätzlich und setzt ungültige Werte auf \`?\`.`;
 }
