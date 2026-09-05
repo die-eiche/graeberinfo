@@ -1,0 +1,252 @@
+/**
+ * Pipeline-Architektur: Extract → Validate/Normalize → Commit.
+ * npx --yes tsx scripts/test_note_pipeline.ts
+ */
+import { NOTE_PIPELINE_STAGES, runNotePipeline } from "../src/services/notePipeline";
+import { parseNoteFields } from "../src/services/discoveries";
+import { emptyNoteMarkdown, renderNoteMarkdown } from "../src/services/noteMerge";
+
+let failed = 0;
+function assert(cond: unknown, msg: string) {
+  if (!cond) {
+    failed += 1;
+    console.error("FAIL:", msg);
+  } else console.log("ok:", msg);
+}
+
+async function main() {
+  assert(NOTE_PIPELINE_STAGES.length >= 6, "feste Pipeline-Stufen vorhanden");
+  assert(
+    NOTE_PIPELINE_STAGES.join(">") ===
+      "ground_incoming>merge_allowed_values>enrich_dates>rescue_roles>apply_corrections>clear_ungrounded_full>same_address>openplz_street_plz",
+    "Stufenreihenfolge stabil"
+  );
+
+  const raw = renderNoteMarkdown({
+    "Verstorbener Vorname": "Anna",
+    "Verstorbener Todestag": "29.05.2026",
+    Grab: "?",
+    Urne: "?",
+    Bestatter: "",
+    "Mieter Verwandtschaftsverhältnis zum Verstorbenen": "Söhnlein",
+    "Mieter Straße": "Untertrafe 7",
+    "Mieter PLZ Ort": "Lübeck",
+    "TF-Wunschtermin": "09.09.2026",
+  });
+
+  const now = new Date("2026-09-05T12:00:00");
+  const transcript =
+    "Die Verstorbene ist vorgestern verstorben. Bestatter Söhnlein. " +
+    "Trauerfeier am übernächsten Sonntag, also den 13. " +
+    "Adresse An der Untertrave in Lübeck.";
+
+  const snap = await runNotePipeline({
+    rawMarkdown: raw,
+    transcript,
+    previousNote: emptyNoteMarkdown(),
+    now,
+    mode: "segment",
+  });
+  const fields = parseNoteFields(snap.noteMarkdown);
+
+  assert(!fields["Verstorbener Vorname"], "Halluzination Anna ohne Beleg entfernt");
+  assert(!fields["Verstorbener Nachname"], "kein Pseudo-Name aus vorgestern/verstorben");
+  assert(!fields.Grab, "Grab ohne Erwähnung entfernt");
+  assert(!fields.Urne, "Urne ohne Erwähnung entfernt");
+  assert(fields.Bestatter === "Söhnlein", "Bestatter aus Transkript gerettet");
+  assert(
+    !fields["Mieter Verwandtschaftsverhältnis zum Verstorbenen"],
+    "Bestatter nicht in Verwandtschaft"
+  );
+  assert(fields["Verstorbener Todestag"] === "03.09.2026", "vorgestern deterministisch");
+  assert(fields["TF-Wunschtermin"] === "13.09.2026", "übernächster Sonntag deterministisch");
+  assert(
+    fields["Mieter Straße"] === "An der Untertrave 7",
+    "Straße via OpenPLZ kanonisiert"
+  );
+  assert(fields["Mieter PLZ Ort"].startsWith("23552"), "PLZ via OpenPLZ gesetzt");
+
+  // Regression: bereits korrekte Werte dürfen durch ein späteres Segment nicht geleert werden
+  const previous = renderNoteMarkdown({
+    "Mieter Vorname": "Thomas",
+    "Mieter Nachname": "Berger",
+    "Verstorbener Vorname": "Anna",
+    "Verstorbener Nachname": "Berger",
+    Grab: "1.01.01.01",
+    Bestatter: "Söhnlein",
+  });
+  const laterSegment = renderNoteMarkdown({
+    "TF-Wunschtermin": "20.09.2026",
+    // Modell halluziniert leeren/anderen Kram nicht – aber nennt die alten Namen nicht erneut
+  });
+  const laterTranscript =
+    "Die Trauerfeier soll am 20. September stattfinden."; // ohne Namen/Grab
+  const preserved = await runNotePipeline({
+    rawMarkdown: laterSegment,
+    transcript: laterTranscript,
+    previousNote: previous,
+    now,
+    mode: "segment",
+  });
+  const kept = parseNoteFields(preserved.noteMarkdown);
+  assert(kept["Mieter Vorname"] === "Thomas", "Segment-Mode: Mieter Vorname bleibt");
+  assert(kept["Mieter Nachname"] === "Berger", "Segment-Mode: Mieter Nachname bleibt");
+  assert(kept["Verstorbener Vorname"] === "Anna", "Segment-Mode: Verstorbener Vorname bleibt");
+  assert(kept.Grab === "1.01.01.01", "Segment-Mode: Grab bleibt");
+  assert(kept.Bestatter === "Söhnlein", "Segment-Mode: Bestatter bleibt");
+  assert(kept["TF-Wunschtermin"] === "20.09.2026", "neues Segment aktualisiert TF");
+
+  // Full-Mode: unbelegte Halluzination gegen Gesamttranskript streichen
+  const hallucinated = renderNoteMarkdown({
+    "Mieter Vorname": "Thomas",
+    "Verstorbener Vorname": "Anna",
+    Grab: "?",
+  });
+  const full = await runNotePipeline({
+    rawMarkdown: emptyNoteMarkdown(),
+    transcript: "Der Mieter ist Thomas Berger. Bestatter Söhnlein.",
+    previousNote: hallucinated,
+    now,
+    mode: "full",
+  });
+  const fullFields = parseNoteFields(full.noteMarkdown);
+  assert(fullFields["Mieter Vorname"] === "Thomas", "Full-Mode: belegter Mieter bleibt");
+  assert(!fullFields["Verstorbener Vorname"], "Full-Mode: unbelegte Anna entfernt");
+  assert(!fullFields.Grab, "Full-Mode: unbelegtes Grab entfernt");
+
+  
+  // Korrekturen: „nicht X sondern Y“ überschreibt Altbestand auch wenn Extrakt den alten Wert wiederholt
+  const wrongName = renderNoteMarkdown({
+    "Verstorbener Vorname": "Anna",
+    "Verstorbener Nachname": "Berger",
+    Bestatter: "Söhnlein",
+  });
+  const correctionTranscript =
+    "Die Verstorbene heißt Anna Berger. Bestatter Söhnlein. " +
+    "Nicht Anna, sondern Else. Bestatter nicht Söhnlein sondern Müller.";
+  const stubbornExtract = renderNoteMarkdown({
+    "Verstorbener Vorname": "Anna",
+    Bestatter: "Söhnlein",
+  });
+  const corrected = await runNotePipeline({
+    rawMarkdown: stubbornExtract,
+    transcript: correctionTranscript,
+    previousNote: wrongName,
+    now,
+    mode: "segment",
+  });
+  const cf = parseNoteFields(corrected.noteMarkdown);
+  assert(cf["Verstorbener Vorname"] === "Else", "Korrektur: Vorname Anna → Else");
+  assert(cf.Bestatter === "Müller", "Korrektur: Bestatter Söhnlein → Müller");
+
+  // Nachname-Korrektur gegen sticky previous
+  const lastNamePrev = renderNoteMarkdown({ "Mieter Nachname": "Berger" });
+  const lastNameFix = await runNotePipeline({
+    rawMarkdown: emptyNoteMarkdown(),
+    transcript: "Mieter Nachname nicht Berger sondern Meier.",
+    previousNote: lastNamePrev,
+    now,
+    mode: "segment",
+  });
+  const lf = parseNoteFields(lastNameFix.noteMarkdown);
+  assert(lf["Mieter Nachname"] === "Meier", "Korrektur: Nachname Berger → Meier");
+
+
+  const ageSnap = await runNotePipeline({
+    rawMarkdown: renderNoteMarkdown({
+      "Verstorbener Geburtstag": "00.09.2026",
+      "Verstorbener Todestag": "04.09.2026",
+      "Mieter E-Mail": "max.mustermann.gmail.com",
+    }),
+    transcript: "Die Verstorbene ist gestern 84 geworden. E-Mail max.mustermann.gmail.com",
+    previousNote: emptyNoteMarkdown(),
+    now: new Date("2026-09-05T12:00:00"),
+    mode: "segment",
+  });
+  const ageF = parseNoteFields(ageSnap.noteMarkdown);
+  assert(ageF["Verstorbener Geburtstag"] === "04.09.1942", "Pipeline: gestern 84 geworden → Geburtstag");
+  assert(!ageF["Verstorbener Todestag"], "Pipeline: Todestag nicht aus geworden");
+  assert(ageF["Mieter E-Mail"] === "max.mustermann@gmail.com", "Pipeline: E-Mail Punkt→@");
+
+
+  const mailSnap = await runNotePipeline({
+    rawMarkdown: renderNoteMarkdown({ "Mieter E-Mail": "Michael. angern.de" }),
+    transcript: "E-Mail Michael@Angern DE",
+    previousNote: emptyNoteMarkdown(),
+    now: new Date("2026-09-05T12:00:00"),
+    mode: "segment",
+  });
+  const mailF = parseNoteFields(mailSnap.noteMarkdown);
+  assert(mailF["Mieter E-Mail"] === "michael@angern.de", "Pipeline: Michael.angern.de → @");
+
+  const meyerMail = await runNotePipeline({
+    rawMarkdown: renderNoteMarkdown({
+      "Mieter Vorname": "Heinz",
+      "Mieter Nachname": "Meyer",
+      "Mieter E-Mail": "heinzmeier@web.de",
+    }),
+    transcript: "Auftraggeber Heinz Meyer. E-Mail heinzmeier at web.de.",
+    previousNote: emptyNoteMarkdown(),
+    now,
+    mode: "segment",
+  });
+  const meyerF = parseNoteFields(meyerMail.noteMarkdown);
+  assert(meyerF["Mieter E-Mail"] === "heinzmeyer@web.de", "Pipeline: Meyer-E-Mail nicht mit ei");
+
+  // Geburt: erster Sonntag im Mai 1934 → Geburtstag, nicht TF
+  const birthSnap = await runNotePipeline({
+    rawMarkdown: renderNoteMarkdown({
+      "Verstorbener Geburtstag": "01.05.1934",
+      "TF-Wunschtermin": "06.05.1934",
+    }),
+    transcript: "Der Verstorbene ist am ersten Sonntag im Mai 1934 geboren.",
+    previousNote: emptyNoteMarkdown(),
+    now,
+    mode: "segment",
+  });
+  const birthF = parseNoteFields(birthSnap.noteMarkdown);
+  assert(birthF["Verstorbener Geburtstag"] === "06.05.1934", "Pipeline: Geburtstag 06.05.1934");
+  assert(!birthF["TF-Wunschtermin"], "Pipeline: kein TF aus Geburts-Ordinal");
+
+  // Manuell gesperrte Felder: weder Extrakt noch Korrekturen/OpenPLZ überschreiben
+  const lockedPrev = renderNoteMarkdown({
+    "Mieter Vorname": "Handeingabe",
+    "Mieter Nachname": "Fest",
+    "Mieter E-Mail": "manuell@example.com",
+    Bestatter: "Alt",
+  });
+  const lockedIncoming = renderNoteMarkdown({
+    "Mieter Vorname": "Modell",
+    "Mieter Nachname": "KI",
+    "Mieter E-Mail": "ki.at.gmail.com",
+    Bestatter: "Neu",
+    "TF-Wunschtermin": "20.09.2026",
+  });
+  const lockedSnap = await runNotePipeline({
+    rawMarkdown: lockedIncoming,
+    transcript:
+      "Mieter heißt Modell KI. E-Mail ki.at.gmail.com. Bestatter Neu. " +
+      "Nicht Modell sondern Else. Trauerfeier am 20. September.",
+    previousNote: lockedPrev,
+    now,
+    mode: "segment",
+    lockedFields: ["Mieter Vorname", "Mieter Nachname", "Mieter E-Mail"],
+  });
+  const lockedF = parseNoteFields(lockedSnap.noteMarkdown);
+  assert(lockedF["Mieter Vorname"] === "Handeingabe", "Lock: Vorname bleibt manuell");
+  assert(lockedF["Mieter Nachname"] === "Fest", "Lock: Nachname bleibt manuell");
+  assert(lockedF["Mieter E-Mail"] === "manuell@example.com", "Lock: E-Mail bleibt manuell");
+  assert(lockedF.Bestatter === "Neu", "ohne Lock: Bestatter wird aktualisiert");
+  assert(lockedF["TF-Wunschtermin"] === "20.09.2026", "ohne Lock: TF wird gesetzt");
+
+  if (failed) {
+    console.error(`\n${failed} fehlgeschlagen`);
+    process.exit(1);
+  }
+  console.log("\nPipeline-Tests ok");
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

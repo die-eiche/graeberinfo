@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "Aufnahme Eiche",
+    "slug": "aufnahme-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Die App nimmt Beratungsgespräche zur extrahierten Datenerfassung auf.",
+        "UIBackgroundModes": ["audio"]
+      },
+      "bundleIdentifier": "de.eiche.aufnahme",
+      "buildNumber": "1"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#000000",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "RECORD_AUDIO",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_MICROPHONE"
+      ],
+      "package": "de.eiche.aufnahme",
+      "versionCode": 1
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Die App nimmt Beratungsgespräche zur extrahierten Datenerfassung auf.",
+          "recordAudioAndroid": true,
+          "enableBackgroundRecording": true
+        }
+      ],
+      "expo-secure-store"
+    ]
+  }
+}
