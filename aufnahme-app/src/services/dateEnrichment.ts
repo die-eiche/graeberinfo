@@ -305,10 +305,108 @@ export function resolveNthWeekday(
   return formatGermanDate(date);
 }
 
+const WEEKDAY_ALT_DE =
+  "Sonntag|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag";
+const MONTH_ALT_DE =
+  "Januar|Februar|März|Maerz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember|Jan|Feb|Mrz|Apr|Jun|Jul|Aug|Sep|Sept|Okt|Nov|Dez";
+
+/** Ordinal-Wochentag-im-Monat im Fließtext (global). */
+function ordinalInMonthRegex(): RegExp {
+  return new RegExp(
+    `\\b(?:am\\s+)?(\\d{1,2}\\.?|erste[rnms]?|zweite[rnms]?|dritte[rnms]?|vierte[rnms]?|letzte[rnms]?)\\s+(${WEEKDAY_ALT_DE})\\s+im\\s+(${MONTH_ALT_DE})(?:\\s+(\\d{4}))?\\b`,
+    "gi"
+  );
+}
+
+type OrdinalDateRole = "birth" | "death" | "tf" | "unknown";
+
+function classifyOrdinalDateRole(context: string): OrdinalDateRole {
+  const c = context.toLowerCase();
+  if (/\b(geboren|geburtstag|zur\s+welt\s+gekommen|geburtsdatum)\b/.test(c)) {
+    return "birth";
+  }
+  if (/\b(verstorben|gestorben|todestag|todestag)\b/.test(c)) {
+    return "death";
+  }
+  if (
+    /\b(trauerfeier|wunschtermin|beisetzung|bestattung|urnenfeier|abschiedsfeier|\btf\b|termin)\b/.test(
+      c
+    )
+  ) {
+    return "tf";
+  }
+  return "unknown";
+}
+
+function contextWindow(text: string, start: number, end: number, radius = 72): string {
+  return text.slice(Math.max(0, start - radius), Math.min(text.length, end + radius));
+}
+
+/**
+ * Ordinal-Kalenderdaten aus dem Transkript den richtigen Feldern zuordnen.
+ * „geboren am ersten Sonntag im Mai 1934“ → Geburtstag (06.05.1934), nicht TF.
+ */
+export function applyOrdinalCalendarDatesFromTranscript(
+  fields: Record<string, string>,
+  transcript: string,
+  now = new Date()
+): Record<string, string> {
+  const next = { ...fields };
+  const text = transcript.replace(/\s+/g, " ").trim();
+  if (!text) return next;
+
+  const re = ordinalInMonthRegex();
+  let birthDate: string | null = null;
+  let deathDate: string | null = null;
+  let tfDate: string | null = null;
+  let match: RegExpExecArray | null;
+
+  while ((match = re.exec(text))) {
+    const phrase = match[0];
+    const parsed = parseRelativeDatePhrase(phrase, now);
+    if (!parsed || parsed.kind !== "weekday-in-month") continue;
+    const de = formatGermanDate(parsed.date);
+    const role = classifyOrdinalDateRole(
+      contextWindow(text, match.index, match.index + phrase.length)
+    );
+    if (role === "birth") birthDate = de;
+    else if (role === "death") deathDate = de;
+    else if (role === "tf") tfDate = de;
+    else if (!tfDate && !birthDate && !deathDate) {
+      // Ohne Rollenwort: historisch Termin-Heuristik (TF), außer Jahr wirkt historisch
+      const year = parsed.date.getFullYear();
+      if (year < now.getFullYear() - 5) {
+        // Alte Jahreszahl ohne „geboren“ → eher Geburtstag als Trauerfeier
+        birthDate = de;
+      } else {
+        tfDate = de;
+      }
+    }
+  }
+
+  if (birthDate) {
+    next["Verstorbener Geburtstag"] = birthDate;
+    const tf = (next["TF-Wunschtermin"] ?? "").trim();
+    // Falsch dem TF zugeordnetes Geburtsdatum entfernen, wenn kein TF-Ordinal vorliegt
+    if (!tfDate && tf === birthDate) {
+      delete next["TF-Wunschtermin"];
+    }
+  }
+  if (deathDate) {
+    next["Verstorbener Todestag"] = deathDate;
+  }
+  if (tfDate) {
+    next["TF-Wunschtermin"] = tfDate;
+  }
+
+  return next;
+}
+
 /**
  * Löst TF-Wunschtermin aus Transkript:
  * „übernächsten Sonntag“, „nächsten Freitag“, „also den 13.“ usw.
  * Überschreibt falsche KI-Daten, wenn eine klare Angabe erkennbar ist.
+ * Ordinal-im-Monat mit Rollenwort läuft über applyOrdinalCalendarDatesFromTranscript.
  */
 export function applyRelativeTfDateFromTranscript(
   fields: Record<string, string>,
@@ -318,10 +416,10 @@ export function applyRelativeTfDateFromTranscript(
   const next = { ...fields };
   const text = transcript.replace(/\s+/g, " ");
 
-  // Strukturelle Auflösung: Ordinal-im-Monat vor „nächster Sonntag“ vor „den 13.“
+  // Ordinal-im-Monat nur als TF, wenn Trauerfeier-Kontext (nicht Geburt)
   const parsed = parseRelativeDatePhrase(text, now);
   if (parsed?.kind === "weekday-in-month") {
-    next["TF-Wunschtermin"] = formatGermanDate(parsed.date);
+    // Bereits durch applyOrdinalCalendarDatesFromTranscript erledigt
     return next;
   }
 
@@ -476,6 +574,8 @@ export function enrichNoteDates(
     // Alter+Relativtag zuerst (sonst landet „gestern 84 geworden“ fälschlich im Todestag)
     next = applyBirthdayFromAgeInTranscript(next, transcript, now);
     next = applyRelativeDeathDateFromTranscript(next, transcript, now);
+    // Ordinal-im-Monat mit Rollenwort (geboren → Geburtstag, Trauerfeier → TF)
+    next = applyOrdinalCalendarDatesFromTranscript(next, transcript, now);
     next = applyRelativeTfDateFromTranscript(next, transcript, now);
   }
   return next;

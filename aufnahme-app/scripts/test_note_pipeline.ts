@@ -179,6 +179,21 @@ async function main() {
   const mailF = parseNoteFields(mailSnap.noteMarkdown);
   assert(mailF["Mieter E-Mail"] === "michael@angern.de", "Pipeline: Michael.angern.de → @");
 
+  // Geburt: erster Sonntag im Mai 1934 → Geburtstag, nicht TF
+  const birthSnap = await runNotePipeline({
+    rawMarkdown: renderNoteMarkdown({
+      "Verstorbener Geburtstag": "01.05.1934",
+      "TF-Wunschtermin": "06.05.1934",
+    }),
+    transcript: "Der Verstorbene ist am ersten Sonntag im Mai 1934 geboren.",
+    previousNote: emptyNoteMarkdown(),
+    now,
+    mode: "segment",
+  });
+  const birthF = parseNoteFields(birthSnap.noteMarkdown);
+  assert(birthF["Verstorbener Geburtstag"] === "06.05.1934", "Pipeline: Geburtstag 06.05.1934");
+  assert(!birthF["TF-Wunschtermin"], "Pipeline: kein TF aus Geburts-Ordinal");
+
   // Manuell gesperrte Felder: weder Extrakt noch Korrekturen/OpenPLZ überschreiben
   const lockedPrev = renderNoteMarkdown({
     "Mieter Vorname": "Handeingabe",

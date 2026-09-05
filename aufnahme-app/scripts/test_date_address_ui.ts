@@ -177,6 +177,25 @@ const tfOrdinal = enrichNoteDates(
 );
 assert(tfOrdinal["TF-Wunschtermin"] === "04.10.2026", "TF: erster Sonntag überschreibt 01.10.");
 
+// Geburt: „erster Sonntag im Mai 1934“ → Geburtstag 06.05.1934, nicht TF / nicht 01.05.
+assert(
+  resolveRelativeDatePhrase("erster Sonntag im Mai 1934", now) === "06.05.1934",
+  "erster Sonntag Mai 1934 = 06.05.1934"
+);
+const birthOrdinal = enrichNoteDates(
+  { "Verstorbener Geburtstag": "01.05.1934", "TF-Wunschtermin": "06.05.1934" },
+  now,
+  "Der Verstorbene ist am ersten Sonntag im Mai 1934 geboren."
+);
+assert(
+  birthOrdinal["Verstorbener Geburtstag"] === "06.05.1934",
+  "geboren + erster Sonntag → Geburtstag 06.05.1934"
+);
+assert(
+  !birthOrdinal["TF-Wunschtermin"],
+  "Geburts-Ordinal landet nicht im TF-Wunschtermin"
+);
+
 assert(normalizeEmailValue("max.mustermann.gmail.com") === "max.mustermann@gmail.com", "E-Mail Punkt→@ bei gmail");
 assert(normalizeEmailValue("info at web.de") === "info@web.de", "E-Mail at → @");
 assert(normalizeEmailValue("a.b@gmx.de") === "a.b@gmx.de", "E-Mail mit @ bleibt");

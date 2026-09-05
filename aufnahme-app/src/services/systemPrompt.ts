@@ -33,6 +33,7 @@ Du **extrahierst** nur explizit Gesagtes in die Schema-Felder. Keine Jahresergä
 - \`?\` bedeutet: genannt, aber nicht sicher identifiziert. **Nicht raten.**
 - Feld nie genannt → **kein** \`?\` und keinen Wert erfinden (kein „Anna“, kein Grab/Urne ohne Erwähnung).
 - Relativkalender: erster/zweiter/letzter Wochentag im Monat = n-ter Wochentag (erster Sonntag im Oktober ist nicht der 01.10.). Die App loest das deterministisch.
+- „geboren am ersten Sonntag im Mai 1934“ → Verstorbener Geburtstag (nicht TF-Wunschtermin).
 - Relativtermine: „übernächsten Sonntag“ / „also den 13.“ anhand „Heute“ als \`TT.MM.JJJJ\` in TF-Wunschtermin.
 
 ## Korrekturen (alle Felder)
