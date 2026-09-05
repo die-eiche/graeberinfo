@@ -1,3 +1,9 @@
+import {
+  parseRelativeDatePhrase,
+  resolveRelativeDatePhrase,
+  resolveWeekdayFromToday,
+  parseWeekdayName,
+} from "./relativeDates";
 import { UNCERTAIN_MARK } from "./allowedValues";
 
 const MONTHS: Record<string, number> = {
@@ -110,6 +116,9 @@ export function toGermanDateFormat(day: number, month: number, year: number): st
 export function enrichPartialDate(raw: string, now = new Date()): string {
   const trimmed = raw.trim();
   if (!trimmed || trimmed === UNCERTAIN_MARK) return trimmed;
+
+  const fromPhrase = resolveRelativeDatePhrase(trimmed, now);
+  if (fromPhrase) return fromPhrase;
 
   const relative = resolveRelativeDateToken(trimmed, now);
   if (relative) return relative;
@@ -284,31 +293,16 @@ const WEEKDAY_INDEX: Record<string, number> = {
   samstag: 6,
 };
 
-/** Nächster / übernächster Wochentag relativ zu now (JS: So=0). */
+/** @deprecated Name historisch – delegiert an resolveWeekdayFromToday. */
 export function resolveNthWeekday(
   weekdayName: string,
   which: "next" | "after-next" | "this",
   now = new Date()
 ): string {
-  const key = weekdayName
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .replace(/[^a-z]/g, "");
-  const target = WEEKDAY_INDEX[key];
-  if (target === undefined) {
-    throw new Error(`Unbekannter Wochentag: ${weekdayName}`);
-  }
-  const current = now.getDay();
-  let delta = (target - current + 7) % 7;
-  if (which === "next") {
-    if (delta === 0) delta = 7;
-  } else if (which === "after-next") {
-    if (delta === 0) delta = 14;
-    else delta += 7;
-  }
-  // which === "this": delta===0 bleibt heute
-  return formatGermanDate(addDays(now, delta));
+  const weekday = parseWeekdayName(weekdayName);
+  if (weekday == null) throw new Error(`Unbekannter Wochentag: ${weekdayName}`);
+  const date = resolveWeekdayFromToday(weekday, which, now);
+  return formatGermanDate(date);
 }
 
 /**
@@ -324,35 +318,24 @@ export function applyRelativeTfDateFromTranscript(
   const next = { ...fields };
   const text = transcript.replace(/\s+/g, " ");
 
-  // Expliziter Tag im Monat, oft nach „also den 13.“
-  const dayOnly = /\b(?:also\s+)?(?:am|den|zum)\s+(\d{1,2})\.?(?:\s|$)/i.exec(text);
-  // „übernächste[n|r|m]? Sonntag“
-  const afterNext = /\b(?:am\s+)?(?:übernächste[nrms]?|uebernächste[nrms]?|uebernaechste[nrms]?)\s+(Sonntag|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag)\b/i.exec(
-    text
-  );
-  const nextWd = /\b(?:am\s+)?(?:nächste[nrms]?|kommende[nrms]?)\s+(Sonntag|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag)\b/i.exec(
-    text
-  );
-  const thisWd = /\b(?:an?\s+)?diese[nrms]?\s+(Sonntag|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag)\b/i.exec(
-    text
-  );
-
-  let resolved: string | null = null;
-  if (afterNext?.[1]) {
-    resolved = resolveNthWeekday(afterNext[1], "after-next", now);
-  } else if (nextWd?.[1]) {
-    resolved = resolveNthWeekday(nextWd[1], "next", now);
-  } else if (thisWd?.[1]) {
-    resolved = resolveNthWeekday(thisWd[1], "this", now);
+  // Strukturelle Auflösung: Ordinal-im-Monat vor „nächster Sonntag“ vor „den 13.“
+  const parsed = parseRelativeDatePhrase(text, now);
+  if (parsed?.kind === "weekday-in-month") {
+    next["TF-Wunschtermin"] = formatGermanDate(parsed.date);
+    return next;
   }
 
-  // „den 13.“ bestätigt / setzt Tag – wenn Wochentag schon resolved und Tag passt: ok;
-  // wenn nur Tag genannt: Tag im aktuellen/nächsten Monat
+  let resolved: string | null = null;
+  if (parsed?.kind === "weekday-from-today") {
+    resolved = formatGermanDate(parsed.date);
+  }
+
+  // „also den 13.“ bestätigt / ergänzt – bei Widerspruch zum Wochentag den genannten Tag nehmen
+  const dayOnly = /\b(?:also\s+)?(?:am|den|zum)\s+(\d{1,2})\.?(?:\s|$)/i.exec(text);
   if (dayOnly?.[1]) {
     const day = Number(dayOnly[1]);
     if (day >= 1 && day <= 31) {
       if (resolved) {
-        // Wenn Wochentag-Auflösung denselben Tag hat → behalten; sonst Tag aus „den 13.“ bevorzugen
         const resolvedDay = Number(resolved.split(".")[0]);
         if (resolvedDay !== day) {
           const month = now.getMonth();
@@ -363,12 +346,13 @@ export function applyRelativeTfDateFromTranscript(
           }
           resolved = formatGermanDate(candidate);
         }
+      } else if (parsed?.kind === "day-of-month") {
+        resolved = formatGermanDate(parsed.date);
       } else {
         const month = now.getMonth();
         const year = now.getFullYear();
         let candidate = new Date(year, month, day);
         if (candidate.getDate() !== day) {
-          // ungültiger Tag im Monat
           candidate = new Date(year, month + 1, day);
         }
         if (candidate.getTime() < new Date(year, month, now.getDate()).getTime()) {
@@ -377,6 +361,8 @@ export function applyRelativeTfDateFromTranscript(
         resolved = formatGermanDate(candidate);
       }
     }
+  } else if (!resolved && parsed) {
+    resolved = formatGermanDate(parsed.date);
   }
 
   if (!resolved) return next;

@@ -147,7 +147,8 @@ export async function extractFromTranscript(
     "gestern/vorgestern/heute X geworden → Verstorbener Geburtstag (Jahrestag minus Alter), NICHT Todestag.",
     "Datumsformat ausschließlich TT.MM.JJJJ (kein ISO JJJJ-MM-TT; unbekannter Tag 00.MM.JJJJ).",
     "Nur explizit Gesagtes – keine erfundenen Namen/Grab/Urne. ? nur wenn das Feld wirklich angesprochen und unklar ist.",
-    "Relativtermine: übernächsten Sonntag / „also den 13.“ anhand Heute als konkretes TT.MM.JJJJ in TF-Wunschtermin.",
+    "Relativkalender: erster/zweiter/letzter Wochentag im Monat = n-ter Wochentag (erster Sonntag im Oktober ist nicht der 01.10.). Die App loest das deterministisch.",
+    "Relativtermine: uebernaechsten Sonntag / also den 13. anhand Heute als konkretes TT.MM.JJJJ in TF-Wunschtermin.",
     "Gib Titel + vollständige Tabelle aus.",
   ].join("\n");
 
@@ -312,6 +313,7 @@ export async function reviewNoteFromFullTranscript(
     "gestern/vorgestern/heute X geworden → Verstorbener Geburtstag (Jahrestag minus Alter), NICHT Todestag.",
     "Datumsformat ausschließlich TT.MM.JJJJ (kein ISO JJJJ-MM-TT; unbekannter Tag 00.MM.JJJJ).",
     "Nur explizit Gesagtes – keine erfundenen Namen/Grab/Urne. ? nur wenn das Feld wirklich angesprochen und unklar ist.",
+    "Kalender: erster/zweiter/letzter Wochentag im Monat = n-ter Wochentag (erster Sonntag im Oktober ist nicht der 01.10.). Die App loest das deterministisch.",
     "Relativtermine: übernächsten Sonntag / „also den 13.“ anhand Heute als konkretes TT.MM.JJJJ in TF-Wunschtermin.",
     "Gib Titel + vollständige Tabelle mit dem korrigierten Gesamtstand aus.",
   ].join("\n");

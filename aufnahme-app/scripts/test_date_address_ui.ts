@@ -10,6 +10,11 @@ import {
   resolveNthWeekday,
   resolveRelativeDateToken,
 } from "../src/services/dateEnrichment";
+import {
+  resolveRelativeDatePhrase,
+  resolveWeekdayInMonth,
+  formatGermanDate,
+} from "../src/services/relativeDates";
 import { normalizeEmailValue } from "../src/services/fieldEmails";
 import { clearUngroundedFields } from "../src/services/fieldGrounding";
 import { buildNoteTableRows } from "../src/services/discoveries";
@@ -141,6 +146,36 @@ assert(
   "Grab mit Erwähnung bleibt"
 );
 
+
+
+// Ordinal-Wochentag im Monat (strukturell)
+// 01.10.2026 = Donnerstag → erster Sonntag = 04.10.2026
+assert(
+  formatGermanDate(resolveWeekdayInMonth(0, 1, 10, 2026)) === "04.10.2026",
+  "erster Sonntag Okt 2026 = 04.10., nicht 01.10."
+);
+assert(
+  resolveRelativeDatePhrase("erster Sonntag im Oktober", now) === "04.10.2026",
+  "Phrase erster Sonntag im Oktober"
+);
+assert(
+  resolveRelativeDatePhrase("Trauerfeier am ersten Sonntag im Oktober", now) === "04.10.2026",
+  "Phrase in Satzkontext"
+);
+assert(
+  resolveRelativeDatePhrase("letzter Sonntag im Oktober", now) === "25.10.2026",
+  "letzter Sonntag im Oktober 2026"
+);
+assert(
+  resolveRelativeDatePhrase("2. Samstag im November", now) === "14.11.2026",
+  "2. Samstag im November 2026"
+);
+const tfOrdinal = enrichNoteDates(
+  { "TF-Wunschtermin": "01.10.2026" },
+  now,
+  "Die Trauerfeier soll am ersten Sonntag im Oktober stattfinden."
+);
+assert(tfOrdinal["TF-Wunschtermin"] === "04.10.2026", "TF: erster Sonntag überschreibt 01.10.");
 
 assert(normalizeEmailValue("max.mustermann.gmail.com") === "max.mustermann@gmail.com", "E-Mail Punkt→@ bei gmail");
 assert(normalizeEmailValue("info at web.de") === "info@web.de", "E-Mail at → @");
