@@ -45,13 +45,15 @@ async function finalizeNote(
   raw: string,
   transcript: string,
   previousNote: string,
-  mode: NotePipelineMode = "segment"
+  mode: NotePipelineMode = "segment",
+  lockedFields: readonly string[] = []
 ): Promise<NoteSnapshot> {
   return runNotePipeline({
     rawMarkdown: raw,
     transcript,
     previousNote: previousNote || EMPTY_NOTE,
     mode,
+    lockedFields,
   });
 }
 
@@ -118,7 +120,8 @@ function formatNoteStateForPrompt(noteMarkdown: string): string {
 export async function extractFromTranscript(
   sessionId: string,
   transcript: string,
-  previousNote: string
+  previousNote: string,
+  lockedFields: readonly string[] = []
 ): Promise<NoteSnapshot & { transcript: string }> {
   const apiKey = await requireKey();
   const userContent = [
@@ -177,14 +180,15 @@ export async function extractFromTranscript(
     choices: Array<{ message: { content: string } }>;
   };
   const raw = data.choices?.[0]?.message?.content?.trim() || "";
-  return { ...(await finalizeNote(raw, transcript, previousNote)), transcript };
+  return { ...(await finalizeNote(raw, transcript, previousNote, "segment", lockedFields)), transcript };
 }
 
 export async function transcribeAndExtract(
   sessionId: string,
   audioUri: string,
   previousNote: string,
-  priorTranscriptChunks: string[] = []
+  priorTranscriptChunks: string[] = [],
+  lockedFields: readonly string[] = []
 ): Promise<
   NoteSnapshot & {
     transcript?: string;
@@ -254,7 +258,7 @@ export async function transcribeAndExtract(
 
     const transcriptChunks = appendTranscriptChunk(priorTranscriptChunks, transcript);
     const rolling = buildRollingTranscript(transcriptChunks);
-    const extracted = await extractFromTranscript(sessionId, rolling, previousNote);
+    const extracted = await extractFromTranscript(sessionId, rolling, previousNote, lockedFields);
     return {
       ...extracted,
       // Roh-Transkript dieses Segments für die UI/Diagnose; Chunks für den nächsten Durchlauf
@@ -279,7 +283,8 @@ export async function transcribeAndExtract(
 export async function reviewNoteFromFullTranscript(
   sessionId: string,
   transcriptChunks: string[],
-  currentNote: string
+  currentNote: string,
+  lockedFields: readonly string[] = []
 ): Promise<NoteSnapshot> {
   const fullTranscript = buildFullTranscript(transcriptChunks);
   if (!fullTranscript.trim()) {
@@ -344,5 +349,5 @@ export async function reviewNoteFromFullTranscript(
   };
   const raw = data.choices?.[0]?.message?.content?.trim() || "";
   // Volles Transkript: Halluzinationen gegen Gesamtbeleg streichen, Altbestand sonst erhalten
-  return finalizeNote(raw, fullTranscript, currentNote || EMPTY_NOTE, "full");
+  return finalizeNote(raw, fullTranscript, currentNote || EMPTY_NOTE, "full", lockedFields);
 }

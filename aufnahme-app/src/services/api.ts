@@ -15,12 +15,14 @@ export async function startSession(sessionId: string): Promise<NoteSnapshot & { 
 export async function stopSession(
   sessionId: string,
   current: NoteSnapshot,
-  transcriptChunks: string[] = []
+  transcriptChunks: string[] = [],
+  lockedFields: readonly string[] = []
 ): Promise<NoteSnapshot & { sessionId: string }> {
   const reviewed = await reviewNoteFromFullTranscript(
     sessionId,
     transcriptChunks,
-    current.noteMarkdown
+    current.noteMarkdown,
+    lockedFields
   );
   return { sessionId, ...reviewed };
 }
@@ -29,7 +31,8 @@ export async function sendAudioSegment(
   sessionId: string,
   uri: string,
   previousNote: string,
-  priorTranscriptChunks: string[] = []
+  priorTranscriptChunks: string[] = [],
+  lockedFields: readonly string[] = []
 ): Promise<
   NoteSnapshot & {
     transcript?: string;
@@ -37,5 +40,5 @@ export async function sendAudioSegment(
     skipped?: boolean;
   }
 > {
-  return transcribeAndExtract(sessionId, uri, previousNote, priorTranscriptChunks);
+  return transcribeAndExtract(sessionId, uri, previousNote, priorTranscriptChunks, lockedFields);
 }

@@ -179,7 +179,38 @@ async function main() {
   const mailF = parseNoteFields(mailSnap.noteMarkdown);
   assert(mailF["Mieter E-Mail"] === "michael@angern.de", "Pipeline: Michael.angern.de → @");
 
-if (failed) {
+  // Manuell gesperrte Felder: weder Extrakt noch Korrekturen/OpenPLZ überschreiben
+  const lockedPrev = renderNoteMarkdown({
+    "Mieter Vorname": "Handeingabe",
+    "Mieter Nachname": "Fest",
+    "Mieter E-Mail": "manuell@example.com",
+    Bestatter: "Alt",
+  });
+  const lockedIncoming = renderNoteMarkdown({
+    "Mieter Vorname": "Modell",
+    "Mieter Nachname": "KI",
+    "Mieter E-Mail": "ki.at.gmail.com",
+    Bestatter: "Neu",
+    "TF-Wunschtermin": "20.09.2026",
+  });
+  const lockedSnap = await runNotePipeline({
+    rawMarkdown: lockedIncoming,
+    transcript:
+      "Mieter heißt Modell KI. E-Mail ki.at.gmail.com. Bestatter Neu. " +
+      "Nicht Modell sondern Else. Trauerfeier am 20. September.",
+    previousNote: lockedPrev,
+    now,
+    mode: "segment",
+    lockedFields: ["Mieter Vorname", "Mieter Nachname", "Mieter E-Mail"],
+  });
+  const lockedF = parseNoteFields(lockedSnap.noteMarkdown);
+  assert(lockedF["Mieter Vorname"] === "Handeingabe", "Lock: Vorname bleibt manuell");
+  assert(lockedF["Mieter Nachname"] === "Fest", "Lock: Nachname bleibt manuell");
+  assert(lockedF["Mieter E-Mail"] === "manuell@example.com", "Lock: E-Mail bleibt manuell");
+  assert(lockedF.Bestatter === "Neu", "ohne Lock: Bestatter wird aktualisiert");
+  assert(lockedF["TF-Wunschtermin"] === "20.09.2026", "ohne Lock: TF wird gesetzt");
+
+  if (failed) {
     console.error(`\n${failed} fehlgeschlagen`);
     process.exit(1);
   }

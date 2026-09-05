@@ -39,16 +39,38 @@ export function titleFromMieter(fields: Partial<Record<string, string>>): string
  */
 export function mergeNoteFields(
   previous: Record<string, string>,
-  incoming: Record<string, string>
+  incoming: Record<string, string>,
+  lockedFields: readonly string[] = []
 ): Record<string, string> {
+  const locked = new Set(lockedFields);
   const merged: Record<string, string> = { ...previous };
   for (const field of NOTE_FIELDS) {
+    if (locked.has(field)) continue;
     const next = (incoming[field] ?? "").trim();
     if (next) {
       merged[field] = next;
     }
   }
   return merged;
+}
+
+/**
+ * Stellt manuell gesetzte Felder wieder her (gegen spätere Pipeline-Stufen).
+ * Leere manuelle Werte bleiben leer.
+ */
+export function restoreLockedFields(
+  fields: Record<string, string>,
+  previous: Record<string, string>,
+  lockedFields: readonly string[]
+): Record<string, string> {
+  if (!lockedFields.length) return fields;
+  const next = { ...fields };
+  for (const field of lockedFields) {
+    const value = (previous[field] ?? "").trim();
+    if (value) next[field] = value;
+    else delete next[field];
+  }
+  return next;
 }
 
 export function mergeNoteMarkdown(previousMarkdown: string, incomingMarkdown: string): string {

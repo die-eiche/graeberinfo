@@ -12,6 +12,7 @@ import { AppState, Platform, type AppStateStatus } from "react-native";
 import { sendAudioSegment, startSession, stopSession } from "../services/api";
 import { hasApiKey } from "../services/apiKey";
 import { diffDiscoveries, type Discovery } from "../services/discoveries";
+import { setNoteField } from "../services/noteMerge";
 import { shareNoteToSystemNotes, upsertNoteFile } from "../services/notes";
 import type { SessionStatus } from "../types/session";
 import {
@@ -92,6 +93,8 @@ export function useAufnahmeSession() {
   const [noteMarkdown, setNoteMarkdown] = useState("");
   const [discoveries, setDiscoveries] = useState<Discovery[]>([]);
   const [focusFields, setFocusFields] = useState<string[]>([]);
+  const [lockedFields, setLockedFields] = useState<string[]>([]);
+  const lockedFieldsRef = useRef<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [keyConfigured, setKeyConfigured] = useState(false);
@@ -126,6 +129,10 @@ export function useAufnahmeSession() {
   useEffect(() => {
     noteMarkdownRef.current = noteMarkdown;
   }, [noteMarkdown]);
+
+  useEffect(() => {
+    lockedFieldsRef.current = lockedFields;
+  }, [lockedFields]);
 
   useEffect(() => {
     titleRef.current = title;
@@ -180,7 +187,8 @@ export function useAufnahmeSession() {
             sessionIdRef.current,
             uri,
             noteMarkdownRef.current,
-            transcriptChunksRef.current
+            transcriptChunksRef.current,
+            lockedFieldsRef.current
           );
           if (result.transcriptChunks) {
             transcriptChunksRef.current = result.transcriptChunks;
@@ -312,6 +320,8 @@ export function useAufnahmeSession() {
       try {
         setDiscoveries([]);
         setFocusFields([]);
+        setLockedFields([]);
+        lockedFieldsRef.current = [];
         transcriptChunksRef.current = [];
         discoverySeqRef.current = 0;
         notePathRef.current = null;
@@ -368,7 +378,8 @@ export function useAufnahmeSession() {
             title: titleRef.current,
             noteMarkdown: noteMarkdownRef.current,
           },
-          transcriptChunksRef.current
+          transcriptChunksRef.current,
+          lockedFieldsRef.current
         );
         await applyNoteUpdate(finalState.title, finalState.noteMarkdown);
         sessionIdRef.current = null;
@@ -411,12 +422,28 @@ export function useAufnahmeSession() {
     };
   }, [clearSegmentTimer, stopRecorder]);
 
+
+  const applyManualFieldEdit = useCallback(
+    async (field: string, value: string) => {
+      const nextMarkdown = setNoteField(noteMarkdownRef.current, field, value);
+      if (!lockedFieldsRef.current.includes(field)) {
+        const nextLocked = [...lockedFieldsRef.current, field];
+        lockedFieldsRef.current = nextLocked;
+        setLockedFields(nextLocked);
+      }
+      const nextTitle = nextMarkdown.split("\n")[0]?.trim() || titleRef.current || "Aufnahme";
+      await applyNoteUpdate(nextTitle, nextMarkdown);
+    },
+    [applyNoteUpdate]
+  );
+
   return {
     status,
     title,
     noteMarkdown,
     discoveries,
     focusFields,
+    lockedFields,
     error,
     busy,
     keyConfigured,
@@ -424,5 +451,6 @@ export function useAufnahmeSession() {
     platformLabel: Platform.OS,
     toggleStartPause,
     stop,
+    applyManualFieldEdit,
   };
 }

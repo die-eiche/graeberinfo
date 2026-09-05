@@ -3,6 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { FieldEditModal } from "./src/components/FieldEditModal";
 import { GlassButton } from "./src/components/GlassButton";
 import { NoteTable } from "./src/components/NoteTable";
 import { SettingsModal } from "./src/components/SettingsModal";
@@ -15,19 +16,24 @@ function KeepAwakeOn() {
   return null;
 }
 
+type EditTarget = { field: string; value: string } | null;
+
 export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<EditTarget>(null);
   const {
     status,
     title,
     noteMarkdown,
     focusFields,
+    lockedFields,
     error,
     busy,
     keyConfigured,
     refreshKeyState,
     toggleStartPause,
     stop,
+    applyManualFieldEdit,
   } = useAufnahmeSession();
 
   const primaryLabel =
@@ -66,7 +72,12 @@ export default function App() {
 
           <View style={styles.table}>
             {showTable ? (
-              <NoteTable rows={rows} focusFields={focusFields} />
+              <NoteTable
+                rows={rows}
+                focusFields={focusFields}
+                lockedFields={lockedFields}
+                onEditRow={(field, value) => setEditTarget({ field, value })}
+              />
             ) : (
               <View style={styles.placeholder} />
             )}
@@ -103,6 +114,17 @@ export default function App() {
           onClose={() => {
             setSettingsOpen(false);
             void refreshKeyState();
+          }}
+        />
+
+        <FieldEditModal
+          visible={Boolean(editTarget)}
+          field={editTarget?.field ?? ""}
+          value={editTarget?.value ?? ""}
+          onClose={() => setEditTarget(null)}
+          onSave={(nextValue) => {
+            if (!editTarget) return;
+            void applyManualFieldEdit(editTarget.field, nextValue);
           }}
         />
       </SafeAreaView>

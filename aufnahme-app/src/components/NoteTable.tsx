@@ -1,14 +1,22 @@
 import { useEffect, useRef } from "react";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import type { NoteTableRow } from "../services/discoveries";
 
 type Props = {
   rows: NoteTableRow[];
   focusFields: string[];
+  lockedFields?: string[];
   title?: string;
+  onEditRow?: (field: string, value: string) => void;
 };
 
-export function NoteTable({ rows, focusFields, title }: Props) {
+export function NoteTable({
+  rows,
+  focusFields,
+  lockedFields = [],
+  title,
+  onEditRow,
+}: Props) {
   const listRef = useRef<FlatList<NoteTableRow>>(null);
   const focusKey = focusFields.join("|");
 
@@ -54,6 +62,7 @@ export function NoteTable({ rows, focusFields, title }: Props) {
         data={rows}
         keyExtractor={(item) => item.field}
         showsVerticalScrollIndicator
+        keyboardShouldPersistTaps="handled"
         onScrollToIndexFailed={(info) => {
           setTimeout(() => {
             listRef.current?.scrollToOffset({
@@ -64,9 +73,16 @@ export function NoteTable({ rows, focusFields, title }: Props) {
         }}
         renderItem={({ item }) => {
           const highlighted = focusFields.includes(item.field) || item.uncertain;
+          const locked = lockedFields.includes(item.field);
           const filled = Boolean(item.value);
-          return (
-            <View style={[styles.row, highlighted ? styles.rowFocus : null]}>
+          const row = (
+            <View
+              style={[
+                styles.row,
+                highlighted ? styles.rowFocus : null,
+                locked ? styles.rowLocked : null,
+              ]}
+            >
               <Text
                 style={[
                   styles.field,
@@ -76,6 +92,7 @@ export function NoteTable({ rows, focusFields, title }: Props) {
                 numberOfLines={2}
               >
                 {item.field}
+                {locked ? " · fest" : ""}
               </Text>
               <View style={styles.valueCell}>
                 <View style={styles.dotCol}>
@@ -87,12 +104,23 @@ export function NoteTable({ rows, focusFields, title }: Props) {
                     styles.valueText,
                     filled ? styles.valueFilled : styles.valueEmpty,
                     highlighted ? styles.valueFocus : null,
+                    locked ? styles.valueLocked : null,
                   ]}
                 >
                   {item.value || " "}
                 </Text>
               </View>
             </View>
+          );
+          if (!onEditRow) return row;
+          return (
+            <Pressable
+              onPress={() => onEditRow(item.field, item.value)}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.field} bearbeiten`}
+            >
+              {row}
+            </Pressable>
           );
         }}
       />
@@ -138,6 +166,9 @@ const styles = StyleSheet.create({
   rowFocus: {
     backgroundColor: "rgba(255,255,255,0.06)",
   },
+  rowLocked: {
+    backgroundColor: "rgba(90,140,255,0.08)",
+  },
   fieldCol: {
     width: "44%",
     paddingRight: 8,
@@ -177,22 +208,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 17,
   },
-  /** Leere Feldbezeichner: etwas heller */
   fieldLabelEmpty: {
     color: "rgba(155,155,155,0.95)",
   },
-  /** Ausgefüllte Feldbezeichner: weiter abgedunkelt */
   fieldLabelFilled: {
     color: "rgba(105,105,105,0.95)",
   },
   valueEmpty: {
     color: "rgba(90,90,90,0.9)",
   },
-  /** Ausgefüllte Werte: leicht weiter abgedunkelt */
   valueFilled: {
     color: "rgba(135,135,135,0.98)",
   },
   valueFocus: {
     color: "rgba(190,190,190,1)",
+  },
+  valueLocked: {
+    color: "rgba(170,190,255,0.98)",
   },
 });

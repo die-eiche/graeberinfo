@@ -27,6 +27,7 @@ import {
   mergeNoteFields,
   mergeNoteMarkdown,
   renderNoteMarkdown,
+  restoreLockedFields,
   titleFromMieter,
 } from "./noteMerge";
 import { enrichNotePostalCodes } from "./postalCode";
@@ -50,6 +51,8 @@ export type NotePipelineInput = {
    * full = Stop: Gesamtstand gegen volles Transkript belegen.
    */
   mode?: NotePipelineMode;
+  /** Manuell gesetzte Felder – Pipeline überschreibt sie nicht. */
+  lockedFields?: readonly string[];
 };
 
 export type NotePipelineStage =
@@ -96,6 +99,8 @@ export async function runNotePipeline(input: NotePipelineInput): Promise<NoteSna
   const transcript = input.transcript ?? "";
   const previous = input.previousNote || EMPTY_NOTE;
   const mode: NotePipelineMode = input.mode ?? "segment";
+  const lockedFields = input.lockedFields ?? [];
+  const previousFields = parseNoteFields(previous);
 
   // 1) Listen/Grab-Regeln nur auf dem neuen Extrakt
   const segmentNormalized = applyAllowedValueRules(input.rawMarkdown, transcript);
@@ -107,7 +112,7 @@ export async function runNotePipeline(input: NotePipelineInput): Promise<NoteSna
   }
 
   // 3) Merge: nicht-leere Incoming-Werte überschreiben, leere Incoming-Zellen erhalten Previous
-  let fields = mergeNoteFields(parseNoteFields(previous), incomingFields);
+  let fields = mergeNoteFields(previousFields, incomingFields, lockedFields);
 
   // 4) Relativdaten deterministisch
   fields = enrichNoteDates(fields, now, transcript);
@@ -136,7 +141,16 @@ export async function runNotePipeline(input: NotePipelineInput): Promise<NoteSna
 
   // 8) OpenPLZ: Straße kanonisieren + PLZ setzen/korrigieren
   const withPlz = await enrichNotePostalCodes(merged);
-  return snapshotFromMarkdown(withPlz);
+  if (!lockedFields.length) {
+    return snapshotFromMarkdown(withPlz);
+  }
+  // Manuelle Werte haben absoluten Vorrang – auch gegen OpenPLZ/Relativdaten/Korrekturen
+  const lockedRestored = restoreLockedFields(
+    parseNoteFields(withPlz),
+    previousFields,
+    lockedFields
+  );
+  return snapshotFromMarkdown(renderNoteMarkdown(lockedRestored));
 }
 
 /**
@@ -146,13 +160,15 @@ export async function runNotePipeline(input: NotePipelineInput): Promise<NoteSna
 export async function normalizeExistingNote(
   noteMarkdown: string,
   transcript = "",
-  now = new Date()
+  now = new Date(),
+  lockedFields: readonly string[] = []
 ): Promise<NoteSnapshot> {
   return runNotePipeline({
     rawMarkdown: emptyNoteMarkdown(),
     transcript,
     previousNote: noteMarkdown || EMPTY_NOTE,
     now,
+    lockedFields,
     // Ohne volles Transkript keinen Altbestand leeren
     mode: transcript.trim() ? "full" : "segment",
   });
