@@ -44,7 +44,7 @@ Datei: `aufnahme-app/Zulaessige Werte.xlsx`
 |---|---|
 | Gültige Urnen | Schreibweise orientieren/korrigieren; andere Werte erlaubt |
 | Gültige Bestatter | Schreibweise orientieren/korrigieren; andere Werte erlaubt |
-| Gültige Gräber | nur exakte Treffer 1:1, sonst Feld leer |
+| Gültige Gräber | nur exakte Treffer 1:1, sonst \`?\` (roter Punkt in der App) |
 
 Nach Excel-Änderungen JSON neu erzeugen:
 

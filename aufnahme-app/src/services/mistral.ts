@@ -1,49 +1,31 @@
 import { File, Paths, UploadType } from "expo-file-system";
 import { applyAllowedValueRules } from "./allowedValues";
 import { getApiKey } from "./apiKey";
+import { emptyNoteMarkdown, mergeNoteMarkdown, titleFromMieter } from "./noteMerge";
+import { parseNoteFields } from "./discoveries";
 import { getSystemPrompt } from "./systemPrompt";
 import type { NoteSnapshot } from "../types/session";
 
 const EXTRACT_MODEL = "open-mistral-nemo";
 const TRANSCRIBE_MODEL = "voxtral-mini-latest";
 
-const EMPTY_NOTE = `Aufnahme
+const EMPTY_NOTE = emptyNoteMarkdown();
 
-| Feld | Wert |
-|---|---|
-| Mieter Vorname |  |
-| Mieter Nachname |  |
-| Mieter Verwandtschaftsverhältnis zum Verstorbenen |  |
-| Mieter Straße |  |
-| Mieter PLZ Ort |  |
-| Mieter Telefon 1 |  |
-| Mieter Telefon 2 |  |
-| Mieter E-Mail |  |
-| Mieter Überweisung oder SEPA |  |
-| Mieter IBAN |  |
-| Mieter Kontoinhaber |  |
-| Verstorbener Vorname |  |
-| Verstorbener Nachname |  |
-| Verstorbener Straße |  |
-| Verstorbener PLZ Ort |  |
-| Verstorbener Geburtstag |  |
-| Verstorbener Todestag |  |
-| Bestatter |  |
-| Bestatter-Aufwand |  |
-| Grab |  |
-| Urne |  |
-| TF-Wunschtermin |  |
-| TF-Ideen |  |
-`;
-
-function parseNote(raw: string): NoteSnapshot {
-  const lines = raw.trim().split(/\r?\n/);
-  const title = (lines[0] || "Aufnahme").trim() || "Aufnahme";
-  const body = lines.slice(1).join("\n").trim();
+function snapshotFromMarkdown(markdown: string): NoteSnapshot {
+  const fields = parseNoteFields(markdown);
+  const title = titleFromMieter(fields);
+  const noteMarkdown = markdown.replace(/^[^\n]+/, title);
   return {
     title,
-    noteMarkdown: `${title}\n\n${body}`.trim() + "\n",
+    noteMarkdown: noteMarkdown.endsWith("\n") ? noteMarkdown : `${noteMarkdown}\n`,
   };
+}
+
+/** Segment normalisieren, mit bisherigem Stand mergen, Titel aus Mieter ableiten. */
+function finalizeNote(raw: string, transcript: string, previousNote: string): NoteSnapshot {
+  const segmentNormalized = applyAllowedValueRules(raw, transcript);
+  const merged = mergeNoteMarkdown(previousNote || EMPTY_NOTE, segmentNormalized);
+  return snapshotFromMarkdown(merged);
 }
 
 async function requireKey(): Promise<string> {
@@ -90,7 +72,7 @@ async function waitForFile(file: File, attempts = 12): Promise<number> {
 }
 
 export function createEmptyNote(): NoteSnapshot {
-  return parseNote(EMPTY_NOTE);
+  return snapshotFromMarkdown(EMPTY_NOTE);
 }
 
 export async function extractFromTranscript(
@@ -101,13 +83,14 @@ export async function extractFromTranscript(
   const apiKey = await requireKey();
   const userContent = [
     `Session-ID: ${sessionId}`,
-    "Bisheriger Stand (falls vorhanden):",
-    previousNote || "",
     "",
-    "Neuer Gesprächsabschnitt:",
+    "Gesprächsabschnitt (nur dieser Text):",
     transcript,
     "",
-    "Aktualisiere den Stand gemäß Systemregeln und gib Titel + vollständige Tabelle aus.",
+    "Extrahiere NUR aus diesem Abschnitt. Felder, die hier nicht klar vorkommen, leer lassen.",
+    "Verwandter ≠ Mieter. Explizite Mieter-Angabe in die Mieter-Felder.",
+    "Unklare, aber angesprochene Angaben (inkl. unverstandene Grabnummer) als genau ? ausgeben.",
+    "Gib Titel + vollständige Tabelle aus.",
   ].join("\n");
 
   const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
@@ -135,8 +118,7 @@ export async function extractFromTranscript(
     choices: Array<{ message: { content: string } }>;
   };
   const raw = data.choices?.[0]?.message?.content?.trim() || "";
-  // Urne/Bestatter: Schreibweise weich anpassen; Grab: nur exakte Listen-Treffer
-  return { ...parseNote(applyAllowedValueRules(raw)), transcript };
+  return { ...finalizeNote(raw, transcript, previousNote), transcript };
 }
 
 export async function transcribeAndExtract(
@@ -150,8 +132,7 @@ export async function transcribeAndExtract(
   const sourceSize = await waitForFile(source);
   if (!source.exists || sourceSize < 500) {
     return {
-      title: parseNote(previousNote || EMPTY_NOTE).title,
-      noteMarkdown: previousNote || EMPTY_NOTE,
+      ...snapshotFromMarkdown(previousNote || EMPTY_NOTE),
       transcript: "",
       skipped: true,
     };
@@ -197,8 +178,7 @@ export async function transcribeAndExtract(
     const transcript = (transcribed.text || "").trim();
     if (!transcript) {
       return {
-        title: parseNote(previousNote || EMPTY_NOTE).title,
-        noteMarkdown: previousNote || EMPTY_NOTE,
+        ...snapshotFromMarkdown(previousNote || EMPTY_NOTE),
         transcript: "",
         skipped: true,
       };

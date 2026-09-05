@@ -1,5 +1,5 @@
 import allowedValues from "../data/allowedValues.json";
-import { parseNoteFields } from "./discoveries";
+import { NOTE_FIELDS, parseNoteFields } from "./discoveries";
 
 type AllowedCatalog = {
   urnen: string[];
@@ -92,38 +92,165 @@ export function normalizeGraveValue(raw: string): string {
   return GRAVE_SET.has(formatted) ? formatted : UNCERTAIN_MARK;
 }
 
-function setTableField(markdown: string, field: string, value: string): string {
-  const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(`^(\\|\\s*${escaped}\\s*\\|\\s*)(.*?)(\\s*\\|)$`, "m");
-  if (!pattern.test(markdown)) return markdown;
-  return markdown.replace(pattern, `$1${value}$3`);
+function renderFieldsMarkdown(fields: Record<string, string>): string {
+  const rows = NOTE_FIELDS.map((field) => {
+    const value = (fields[field] ?? "").trim();
+    return `| ${field} | ${value} |`;
+  }).join("\n");
+  return `Aufnahme\n\n| Feld | Wert |\n|---|---|\n${rows}\n`;
+}
+
+const GRAVE_KEYWORD =
+  /\b(grab(?:nummer|stelle|platz)?|grabraum|urnengrab|wahlgrab|reihengrab)\b/i;
+
+/** Starke Hinweise, dass eine Grabnummer gemeint war (auch ohne parsebare Ziffern). */
+const STRONG_GRAVE_REF =
+  /\b(grabnummer|grabstelle|grab\s*nr\.?|grab\s*nummer|nummer\s+(?:vom\s+)?grab)\b/i;
+
+const SPOKEN_DIGIT: Record<string, string> = {
+  null: "0",
+  zero: "0",
+  eins: "1",
+  ein: "1",
+  zwei: "2",
+  zwo: "2",
+  drei: "3",
+  vier: "4",
+  fuenf: "5",
+  fünf: "5",
+  sechs: "6",
+  sieben: "7",
+  acht: "8",
+  neun: "9",
+};
+
+/**
+ * Sucht Grab-Kandidaten im Transkript (Punkte, Ziffernfolgen, gesprochene Ziffern).
+ * Rückgabe:
+ * - gültige Grabnummer, wenn eindeutig auflösbar
+ * - "?" wenn Grab angesprochen / Grabmuster erkannt, aber nicht in der Liste
+ * - null wenn kein Grab-Bezug erkennbar
+ */
+export function resolveGraveFromTranscript(transcript: string): string | null {
+  const text = transcript.trim();
+  if (!text) return null;
+
+  const hasKeyword = GRAVE_KEYWORD.test(text);
+  const strongRef = STRONG_GRAVE_REF.test(text);
+  const candidates: string[] = [];
+
+  // Punktiertes Grabformat ist charakteristisch genug
+  for (const match of text.matchAll(/\b\d(?:\.\d{2}){3,4}\b/g)) {
+    candidates.push(match[0]);
+  }
+
+  // Rohe Ziffernfolgen / gesprochene Ziffern nur mit Grab-Kontext
+  if (hasKeyword) {
+    for (const match of text.matchAll(/\b\d(?:[\s./-]*\d){6,8}\b/g)) {
+      const digits = match[0].replace(/\D/g, "");
+      if (digits.length === 7 || digits.length === 9) {
+        candidates.push(digits);
+      }
+    }
+
+    const afterGrab = text.split(GRAVE_KEYWORD).slice(1).join(" ");
+    const spoken = extractSpokenDigits(afterGrab.slice(0, 160));
+    if (spoken.length >= 4) {
+      candidates.push(spoken);
+    }
+  }
+
+  const resolved = candidates
+    .map((c) => normalizeGraveValue(c))
+    .filter((v) => v.length > 0);
+
+  const valid = resolved.find((v) => v !== UNCERTAIN_MARK);
+  if (valid) return valid;
+
+  if (resolved.some((v) => v === UNCERTAIN_MARK)) {
+    return UNCERTAIN_MARK;
+  }
+
+  // „Grabnummer …“ ohne parsebare Ziffern → unsicher markieren
+  if (strongRef) {
+    return UNCERTAIN_MARK;
+  }
+
+  // „Grab“ + Ziffern, die nicht zum Muster passen → unsicher
+  if (hasKeyword && /\d/.test(text)) {
+    return UNCERTAIN_MARK;
+  }
+
+  return null;
+}
+
+function extractSpokenDigits(chunk: string): string {
+  const tokens = chunk
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  let digits = "";
+  for (const token of tokens) {
+    if (/^\d+$/.test(token)) {
+      digits += token;
+      continue;
+    }
+    const mapped = SPOKEN_DIGIT[token];
+    if (mapped) {
+      digits += mapped;
+      continue;
+    }
+    // nach ersten Nicht-Ziffern abbrechen, sobald schon Ziffern gesammelt
+    if (digits.length > 0) break;
+  }
+  return digits;
 }
 
 /**
  * Nach der KI-Auswertung:
  * - Urne / Bestatter: Schreibweise an Liste anlehnen, andere Werte erlaubt
  * - Grab: Punkte ergänzen, nur exakte Listen-Treffer; sonst "?"
+ * - Transkript: wenn Grab erkennbar, aber KI leer ließ → "?" bzw. gültige Nummer setzen
  */
-export function applyAllowedValueRules(noteMarkdown: string): string {
-  const fields = parseNoteFields(noteMarkdown);
-  let next = noteMarkdown;
+export function applyAllowedValueRules(
+  noteMarkdown: string,
+  transcript?: string
+): string {
+  const fields = { ...parseNoteFields(noteMarkdown) };
 
-  const urn = fields["Urne"];
-  if (urn) {
-    next = setTableField(next, "Urne", softMatchAllowed(urn, URN_LIST));
+  if (fields["Urne"]) {
+    fields["Urne"] = softMatchAllowed(fields["Urne"], URN_LIST);
   }
 
-  const undertaker = fields["Bestatter"];
-  if (undertaker) {
-    next = setTableField(next, "Bestatter", softMatchAllowed(undertaker, UNDERTAKER_LIST));
+  if (fields["Bestatter"]) {
+    fields["Bestatter"] = softMatchAllowed(fields["Bestatter"], UNDERTAKER_LIST);
   }
 
-  const grave = fields["Grab"];
+  let grave = (fields["Grab"] ?? "").trim();
   if (grave) {
-    next = setTableField(next, "Grab", normalizeGraveValue(grave));
+    grave = normalizeGraveValue(grave);
+    if (grave) fields["Grab"] = grave;
+    else delete fields["Grab"];
   }
 
-  return next;
+  if (transcript) {
+    const fromTranscript = resolveGraveFromTranscript(transcript);
+    if (fromTranscript !== null) {
+      // Transkript setzt, wenn KI leer ließ; gültige Nummer ersetzt "?";
+      // "?" überschreibt keine bereits gültige Listennummer.
+      if (!grave) {
+        fields["Grab"] = fromTranscript;
+      } else if (grave === UNCERTAIN_MARK && fromTranscript !== UNCERTAIN_MARK) {
+        fields["Grab"] = fromTranscript;
+      } else if (grave === UNCERTAIN_MARK) {
+        fields["Grab"] = UNCERTAIN_MARK;
+      }
+    }
+  }
+
+  return renderFieldsMarkdown(fields);
 }
 
 /** Prompt-Abschnitt mit Listen (ohne die große Gräberliste). */
