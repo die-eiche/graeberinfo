@@ -42,9 +42,11 @@ export function NoteTable({ rows, focusFields, title }: Props) {
         </Text>
       ) : null}
       <View style={styles.head}>
-        <View style={styles.dotCol} />
         <Text style={[styles.headCell, styles.fieldCol]}>Feld</Text>
-        <Text style={[styles.headCell, styles.valueCol]}>Wert</Text>
+        <View style={styles.valueHead}>
+          <View style={styles.dotCol} />
+          <Text style={[styles.headCell, styles.valueHeadText]}>Wert</Text>
+        </View>
       </View>
       <FlatList
         ref={listRef}
@@ -65,9 +67,6 @@ export function NoteTable({ rows, focusFields, title }: Props) {
           const filled = Boolean(item.value);
           return (
             <View style={[styles.row, highlighted ? styles.rowFocus : null]}>
-              <View style={styles.dotCol}>
-                {item.uncertain ? <View style={styles.dot} /> : null}
-              </View>
               <Text
                 style={[
                   styles.field,
@@ -78,16 +77,21 @@ export function NoteTable({ rows, focusFields, title }: Props) {
               >
                 {item.field}
               </Text>
-              <Text
-                style={[
-                  styles.value,
-                  styles.valueCol,
-                  filled ? styles.valueFilled : styles.valueEmpty,
-                  highlighted ? styles.valueFocus : null,
-                ]}
-              >
-                {item.value || " "}
-              </Text>
+              <View style={styles.valueCell}>
+                <View style={styles.dotCol}>
+                  {item.uncertain ? <View style={styles.dot} /> : null}
+                </View>
+                <Text
+                  style={[
+                    styles.value,
+                    styles.valueText,
+                    filled ? styles.valueFilled : styles.valueEmpty,
+                    highlighted ? styles.valueFocus : null,
+                  ]}
+                >
+                  {item.value || " "}
+                </Text>
+              </View>
             </View>
           );
         }}
@@ -134,6 +138,23 @@ const styles = StyleSheet.create({
   rowFocus: {
     backgroundColor: "rgba(255,255,255,0.06)",
   },
+  fieldCol: {
+    width: "44%",
+    paddingRight: 8,
+  },
+  valueHead: {
+    width: "56%",
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  valueHeadText: {
+    flex: 1,
+  },
+  valueCell: {
+    width: "56%",
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
   dotCol: {
     width: 14,
     paddingTop: 4,
@@ -145,12 +166,8 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: "#FF453A",
   },
-  fieldCol: {
-    width: "46%",
-    paddingRight: 8,
-  },
-  valueCol: {
-    width: "50%",
+  valueText: {
+    flex: 1,
   },
   field: {
     fontSize: 12,

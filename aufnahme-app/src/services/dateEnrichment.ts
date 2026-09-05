@@ -103,6 +103,9 @@ export function enrichPartialDate(raw: string, now = new Date()): string {
   const trimmed = raw.trim();
   if (!trimmed || trimmed === UNCERTAIN_MARK) return trimmed;
 
+  const relative = resolveRelativeDateToken(trimmed, now);
+  if (relative) return relative;
+
   // schon volles Datum TT.MM.JJJJ oder JJJJ-MM-TT
   if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(trimmed)) {
     const [d, m, y] = trimmed.split(".").map(Number);
@@ -141,18 +144,118 @@ export function enrichPartialDate(raw: string, now = new Date()): string {
   return trimmed;
 }
 
+
+const RELATIVE_DAY_OFFSET: Record<string, number> = {
+  vorgestern: -2,
+  gestern: -1,
+  heute: 0,
+  morgen: 1,
+  ubermorgen: 2,
+  uebermorgen: 2,
+};
+
+function formatGermanDate(d: Date): string {
+  return `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}.${d.getFullYear()}`;
+}
+
+function addDays(base: Date, days: number): Date {
+  const d = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+/** Löst reine Relativangaben wie „vorgestern“ zu TT.MM.JJJJ auf. */
+export function resolveRelativeDateToken(raw: string, now = new Date()): string | null {
+  const key = raw
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^a-z]/g, "");
+  if (!(key in RELATIVE_DAY_OFFSET)) return null;
+  return formatGermanDate(addDays(now, RELATIVE_DAY_OFFSET[key]));
+}
+
+/**
+ * Setzt Verstorbener Todestag aus Transkript-Relativangaben
+ * („vorgestern verstorben“, „ist gestern gestorben“, …),
+ * wenn noch kein brauchbares Datum gesetzt ist.
+ */
+export function applyRelativeDeathDateFromTranscript(
+  fields: Record<string, string>,
+  transcript: string,
+  now = new Date()
+): Record<string, string> {
+  const next = { ...fields };
+  const current = (next["Verstorbener Todestag"] ?? "").trim();
+
+  // Feldwert selbst ist Relativwort
+  if (current) {
+    const resolved = resolveRelativeDateToken(current, now);
+    if (resolved) {
+      next["Verstorbener Todestag"] = resolved;
+      return next;
+    }
+  }
+
+  const text = transcript.replace(/\s+/g, " ");
+  const patterns = [
+    /\b(vorgestern|gestern|heute|morgen|übermorgen|uebermorgen)\b[^.!?]{0,40}\b(verstorben|gestorben|todestag)\b/i,
+    /\b(verstorben|gestorben|todestag)\b[^.!?]{0,40}\b(vorgestern|gestern|heute|morgen|übermorgen|uebermorgen)\b/i,
+    /\bist\s+(vorgestern|gestern|heute)\s+(verstorben|gestorben)\b/i,
+  ];
+
+  let token: string | null = null;
+  for (const pattern of patterns) {
+    const match = pattern.exec(text);
+    if (!match) continue;
+    token = [match[1], match[2]].find((p) => p && p.toLowerCase() in RELATIVE_DAY_OFFSET || (p && resolveRelativeDateToken(p, now))) || null;
+    // pick the relative word from groups
+    for (const g of match.slice(1)) {
+      if (g && resolveRelativeDateToken(g, now)) {
+        token = g;
+        break;
+      }
+    }
+    if (token) break;
+  }
+
+  if (!token) return next;
+  const resolved = resolveRelativeDateToken(token, now);
+  if (!resolved) return next;
+
+  // Nur setzen/überschreiben wenn leer, unsicher, Relativwort, oder offensichtlich falsch generiert
+  // (kein TT.MM.JJJJ) – bei bereits konkretem Datum nur überschreiben wenn current Relativwort war
+  if (!current || current === UNCERTAIN_MARK || resolveRelativeDateToken(current, now)) {
+    next["Verstorbener Todestag"] = resolved;
+  } else if (!/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(current)) {
+    next["Verstorbener Todestag"] = resolved;
+  }
+  // Wenn ein konkretes Datum da ist, das nicht zur Relativangabe passt: Transkript hat Vorrang
+  else {
+    // Transkript-Relativangabe hat Vorrang vor geratenem Kalenderdatum
+    next["Verstorbener Todestag"] = resolved;
+  }
+  return next;
+}
+
+
 const DATE_FIELDS = ["Verstorbener Todestag", "TF-Wunschtermin"] as const;
 
 /** Wendet Jahres-/Datums-Ergänzung auf Notizfelder an. */
 export function enrichNoteDates(
   fields: Record<string, string>,
-  now = new Date()
+  now = new Date(),
+  transcript = ""
 ): Record<string, string> {
-  const next = { ...fields };
+  let next = { ...fields };
   for (const field of DATE_FIELDS) {
     const value = (next[field] ?? "").trim();
     if (!value) continue;
     next[field] = enrichPartialDate(value, now);
+  }
+  if (transcript.trim()) {
+    next = applyRelativeDeathDateFromTranscript(next, transcript, now);
   }
   return next;
 }

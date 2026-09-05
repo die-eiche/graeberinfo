@@ -3,6 +3,7 @@ import { applyAllowedValueRules } from "./allowedValues";
 import { getApiKey } from "./apiKey";
 import { emptyNoteMarkdown, mergeNoteMarkdown, renderNoteMarkdown, titleFromMieter } from "./noteMerge";
 import { enrichNoteDates } from "./dateEnrichment";
+import { rescueMisplacedFields } from "./fieldRescue";
 import { applySameAddressFromTenant } from "./addressInference";
 import { enrichNotePostalCodes } from "./postalCode";
 import { parseNoteFields } from "./discoveries";
@@ -18,6 +19,12 @@ const EXTRACT_MODEL = "open-mistral-nemo";
 const TRANSCRIBE_MODEL = "voxtral-mini-latest";
 
 const EMPTY_NOTE = emptyNoteMarkdown();
+
+function formatTodayDe(now = new Date()): string {
+  const d = String(now.getDate()).padStart(2, "0");
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  return `${d}.${m}.${now.getFullYear()}`;
+}
 
 function snapshotFromMarkdown(markdown: string): NoteSnapshot {
   const fields = parseNoteFields(markdown);
@@ -38,7 +45,8 @@ async function finalizeNote(
   const segmentNormalized = applyAllowedValueRules(raw, transcript);
   let merged = mergeNoteMarkdown(previousNote || EMPTY_NOTE, segmentNormalized);
   let fields = parseNoteFields(merged);
-  fields = enrichNoteDates(fields);
+  fields = enrichNoteDates(fields, new Date(), transcript);
+  fields = rescueMisplacedFields(fields, transcript);
   fields = applySameAddressFromTenant(fields, transcript);
   merged = renderNoteMarkdown(fields);
   const withPlz = await enrichNotePostalCodes(merged);
@@ -100,6 +108,7 @@ export async function extractFromTranscript(
   const apiKey = await requireKey();
   const userContent = [
     `Session-ID: ${sessionId}`,
+    `Heute (lokales Datum der Aufnahme): ${formatTodayDe()}`,
     "",
     "Gebundener Gesprächstext (letzte Abschnitte an Pausen geschnitten und zusammengefügt):",
     transcript,
@@ -110,6 +119,9 @@ export async function extractFromTranscript(
     "Korrekturen gelten für ALLE Felder: jeden neu genannten/korrigierten Wert in das passende Feld schreiben.",
     "Adresse: Straße und Ort getrennt; ohne genannte PLZ nur den Ort in PLZ Ort (PLZ ergänzt die App).",
     "Gleiche Adresse Verstorbener/Mieter ausdrücklich übernehmen (Straße + PLZ Ort kopieren).",
+    "Bestatter-Name (z. B. „Bestatter Söhnlein“) NUR in Feld Bestatter – NIEMALS in Verwandtschaftsverhältnis.",
+    "Verwandtschaftsverhältnis nur echte Beziehungswörter (Sohn, Tochter, Ehefrau, …).",
+    "Relativdaten: vorgestern/gestern/heute anhand „Heute …“ als konkretes TT.MM.JJJJ in Verstorbener Todestag.",
     "Todestag und TF-Wunschtermin: wenn nur Tag/Monat ohne Jahr → Tag.Monat. ohne Jahr schreiben (Jahr ergänzt die App).",
     "Unklare, aber angesprochene Angaben (inkl. unverstandene Grabnummer) als genau ? ausgeben.",
     "Gib Titel + vollständige Tabelle aus.",
@@ -248,7 +260,7 @@ export async function reviewNoteFromFullTranscript(
   if (!fullTranscript.trim()) {
     // trotzdem Datums-/Adress-Nachbearbeitung
     let fields = parseNoteFields(currentNote || EMPTY_NOTE);
-    fields = enrichNoteDates(fields);
+    fields = enrichNoteDates(fields, new Date(), "");
     let merged = renderNoteMarkdown(fields);
     merged = await enrichNotePostalCodes(merged);
     return snapshotFromMarkdown(merged);
@@ -257,6 +269,7 @@ export async function reviewNoteFromFullTranscript(
   const apiKey = await requireKey();
   const userContent = [
     `Session-ID: ${sessionId}`,
+    `Heute (lokales Datum der Aufnahme): ${formatTodayDe()}`,
     "",
     "VOLLSTÄNDIGES Sitzungs-Transkript (gesamter Mitschnitt bis Stop):",
     fullTranscript,
@@ -267,6 +280,9 @@ export async function reviewNoteFromFullTranscript(
     "Prüfe den Notizstand am vollständigen Transkript.",
     "Korrigiere falsche/fehlende Werte. Spätere Aussagen haben Vorrang.",
     "Wenn der Verstorbene dieselbe Adresse wie der Mieter hatte: Verstorbener Straße und PLZ Ort vom Mieter übernehmen.",
+    "Bestatter-Name (z. B. „Bestatter Söhnlein“) NUR in Feld Bestatter – NIEMALS in Verwandtschaftsverhältnis.",
+    "Verwandtschaftsverhältnis nur echte Beziehungswörter (Sohn, Tochter, Ehefrau, …).",
+    "Relativdaten: vorgestern/gestern/heute anhand „Heute …“ als konkretes TT.MM.JJJJ in Verstorbener Todestag (falsche Kalenderdaten überschreiben).",
     "Todestag / TF-Wunschtermin ohne Jahr: nur Tag.Monat. schreiben (Jahr ergänzt die App).",
     "Unklare, aber angesprochene Felder als genau ?.",
     "Gib Titel + vollständige Tabelle mit dem korrigierten Gesamtstand aus.",

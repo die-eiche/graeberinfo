@@ -81,7 +81,7 @@ Aus dem Beratungsgespräch extrahierst du ausschließlich formularrelevante Fakt
 ### Mieter
 - Vorname
 - Nachname
-- Verwandtschaftsverhältnis zum Verstorbenen
+- Verwandtschaftsverhältnis zum Verstorbenen → nur Beziehung (Sohn, Tochter, Ehefrau, …), niemals Bestatter-Namen
 - Straße
 - PLZ Ort (Postleitzahl und Ort in einem Wert, z. B. „12345 Musterstadt“; ohne genannte PLZ nur den Ort – App ergänzt PLZ)
 - Telefon 1
@@ -97,11 +97,11 @@ Aus dem Beratungsgespräch extrahierst du ausschließlich formularrelevante Fakt
 - Straße
 - PLZ Ort
 - Geburtstag
-- Todestag → wenn nur Tag/Monat ohne Jahr genannt: als \`TT.MM.\` ausgeben (Jahr ergänzt die App; um den Jahreswechsel herum sinnvoll letztes/aktuelles/kommendes Jahr)
+- Todestag → Relativangaben (vorgestern/gestern/heute/morgen) anhand des mitgelieferten „Heute“-Datums als konkretes \`TT.MM.JJJJ\` ausgeben; bei nur Tag/Monat ohne Jahr: \`TT.MM.\` (Jahr ergänzt die App)
 - Bei Vorsorge/Selbstbuchung: alle diese Felder leer
 
 ### Sonstiges
-- Bestatter
+- Bestatter → Personen-/Firmenname des Bestatters (z. B. „Söhnlein“). Niemals Verwandtschaftswörter; Verwandtschaftsverhältnis ist ein anderes Feld.
 - Bestatter-Aufwand
 - Grab → Punkteformat; nur Listen-Treffer; unsicher/ungültig → \`?\`
 - Urne
