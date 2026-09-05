@@ -26,6 +26,8 @@ Aus dem Beratungsgespräch extrahierst du ausschließlich formularrelevante Fakt
 - Feld **nie genannt** → leere Zelle.
 - Feld **angesprochen**, Wert aber **nicht eindeutig** (mehrere Möglichkeiten, unklare Zuordnung, nur angedeutet, unverständliche Grabnummer) → Zellenwert genau \`?\`.
 - \`?\` bedeutet: genannt, aber nicht sicher identifiziert. **Nicht raten.**
+- Feld nie genannt → **kein** \`?\` und keinen Wert erfinden (kein „Anna“, kein Grab/Urne ohne Erwähnung).
+- Relativtermine: „übernächsten Sonntag“ / „also den 13.“ anhand „Heute“ als \`TT.MM.JJJJ\` in TF-Wunschtermin.
 
 ## Korrekturen (alle Felder)
 - Jede Korrektur / Richtigstellung im Abschnitt muss den **neuen** Wert in das **betroffene Feld** schreiben – nicht nur bei Mieter-Namen.
