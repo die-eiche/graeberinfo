@@ -37,8 +37,9 @@ Aus dem Beratungsgespräch extrahierst du ausschließlich formularrelevante Fakt
 
 ## Adresse / PLZ
 - Straße in „… Straße“, Ort in „… PLZ Ort“.
-- Wenn die Postleitzahl **nicht** genannt wird, aber Ort klar ist: in „PLZ Ort“ **nur den Ort** eintragen (ohne zu raten). Die App ermittelt die PLZ aus Straße + Ort.
-- Wenn PLZ genannt wird: „PLZ Ort“ als „12345 Ort“.
+- Wenn die Postleitzahl **nicht** genannt wird, aber Ort klar ist: in „PLZ Ort“ **nur den Ort** eintragen (ohne zu raten). Die App ermittelt/korrigiert die PLZ über OpenPLZ aus Straße + Ort.
+- Wenn PLZ genannt wird: „PLZ Ort“ als „12345 Ort“. Unsichere/falsche PLZ darf die App anhand Straße + Ort über OpenPLZ korrigieren.
+- Ortsnamen möglichst so lassen, wie gesagt; bei Unsicherheit trotzdem den genannten Ort eintragen (nicht leeren) – die App gleicht gegen OpenPLZ ab.
 - Keine PLZ erfinden.
 - Wenn gesagt wird, der Verstorbene hatte **dieselbe / die gleiche Adresse** wie der Mieter (o. ä.): **Verstorbener Straße** und **Verstorbener PLZ Ort** mit den Mieter-Werten füllen (nicht leer lassen, nicht nochmals abfragen).
 

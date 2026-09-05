@@ -17,8 +17,10 @@ import {
 } from "../src/services/noteMerge";
 import {
   enrichNotePostalCodes,
+  normalizeLocalityQuery,
   normalizeStreetForLookup,
   parsePlzOrt,
+  resolveLocalityNamesFromOpenPlz,
 } from "../src/services/postalCode";
 
 let failed = 0;
@@ -139,6 +141,25 @@ async function main() {
     parseNoteFields(fixed)["Mieter PLZ Ort"] === "23701 Eutin",
     "falsche PLZ anhand Straße+Ort korrigiert"
   );
+
+  assert(normalizeLocalityQuery("in Eutin") === "Eutin", "Ort-Präfix entfernen");
+  assert(
+    (await resolveLocalityNamesFromOpenPlz("Eutin")).includes("Eutin"),
+    "OpenPLZ kennt Ort Eutin"
+  );
+
+  // Ort mit Präposition / unscharfer Form + Straße → PLZ nachziehen
+  const softOrt = await enrichNotePostalCodes(
+    noteWith({
+      "Mieter Straße": "Bahnhofstraße 12",
+      "Mieter PLZ Ort": "in Eutin",
+    })
+  );
+  assert(
+    parseNoteFields(softOrt)["Mieter PLZ Ort"] === "23701 Eutin",
+    "PLZ aus Straße + unscharfem Ort via OpenPLZ"
+  );
+
 
   if (failed > 0) {
     console.error(`\n${failed} Test(s) fehlgeschlagen`);

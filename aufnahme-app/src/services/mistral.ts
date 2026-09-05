@@ -119,7 +119,7 @@ export async function extractFromTranscript(
     "Felder, die im Text nicht klar vorkommen, leer lassen.",
     "Verwandter ≠ Mieter. Explizite Mieter-Angabe in die Mieter-Felder.",
     "Korrekturen gelten für ALLE Felder: jeden neu genannten/korrigierten Wert in das passende Feld schreiben.",
-    "Adresse: Straße und Ort getrennt; ohne genannte PLZ nur den Ort in PLZ Ort (PLZ ergänzt die App).",
+    "Adresse: Straße und Ort getrennt; ohne genannte PLZ nur den Ort in PLZ Ort (OpenPLZ ergänzt/korrigiert die PLZ aus Straße+Ort).",
     "Gleiche Adresse Verstorbener/Mieter ausdrücklich übernehmen (Straße + PLZ Ort kopieren).",
     "Bestatter-Name (z. B. „Bestatter Söhnlein“) NUR in Feld Bestatter – NIEMALS in Verwandtschaftsverhältnis.",
     "Verwandtschaftsverhältnis nur echte Beziehungswörter (Sohn, Tochter, Ehefrau, …).",
