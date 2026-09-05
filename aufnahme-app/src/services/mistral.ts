@@ -1,3 +1,5 @@
+import { fetch as expoFetch } from "expo/fetch";
+import { File } from "expo-file-system";
 import { getApiKey } from "./apiKey";
 import { SYSTEM_PROMPT } from "./systemPrompt";
 import type { NoteSnapshot } from "../types/session";
@@ -108,16 +110,15 @@ export async function transcribeAndExtract(
 ): Promise<NoteSnapshot & { transcript?: string; skipped?: boolean }> {
   const apiKey = await requireKey();
 
+  // React-Native FormData + {uri,name,type} wirft "Unsupported FormDataPart".
+  // Deshalb: expo/fetch + File aus expo-file-system.
+  const audioFile = new File(audioUri);
   const form = new FormData();
   form.append("model", TRANSCRIBE_MODEL);
   form.append("language", "de");
-  form.append("file", {
-    uri: audioUri,
-    name: `segment-${Date.now()}.m4a`,
-    type: "audio/m4a",
-  } as unknown as Blob);
+  form.append("file", audioFile);
 
-  const transcribeResponse = await fetch("https://api.mistral.ai/v1/audio/transcriptions", {
+  const transcribeResponse = await expoFetch("https://api.mistral.ai/v1/audio/transcriptions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
