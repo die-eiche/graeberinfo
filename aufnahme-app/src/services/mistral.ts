@@ -1,5 +1,4 @@
-import { fetch as expoFetch } from "expo/fetch";
-import { File } from "expo-file-system";
+import { File, Paths, UploadType } from "expo-file-system";
 import { getApiKey } from "./apiKey";
 import { SYSTEM_PROMPT } from "./systemPrompt";
 import type { NoteSnapshot } from "../types/session";
@@ -110,37 +109,54 @@ export async function transcribeAndExtract(
 ): Promise<NoteSnapshot & { transcript?: string; skipped?: boolean }> {
   const apiKey = await requireKey();
 
-  // React-Native FormData + {uri,name,type} wirft "Unsupported FormDataPart".
-  // Deshalb: expo/fetch + File aus expo-file-system.
-  const audioFile = new File(audioUri);
-  const form = new FormData();
-  form.append("model", TRANSCRIBE_MODEL);
-  form.append("language", "de");
-  form.append("file", audioFile);
+  // Native Multipart-Upload mit korrektem Dateinamen/.m4a,
+  // damit Mistral die Datei dekodieren kann.
+  const source = new File(audioUri);
+  const uploadFile = new File(Paths.cache, `segment-${Date.now()}.m4a`);
+  source.copy(uploadFile);
 
-  const transcribeResponse = await expoFetch("https://api.mistral.ai/v1/audio/transcriptions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: form,
-  });
+  try {
+    const uploadResult = await uploadFile.upload(
+      "https://api.mistral.ai/v1/audio/transcriptions",
+      {
+        uploadType: UploadType.MULTIPART,
+        fieldName: "file",
+        mimeType: "audio/mp4",
+        parameters: {
+          model: TRANSCRIBE_MODEL,
+          language: "de",
+        },
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+      }
+    );
 
-  if (!transcribeResponse.ok) {
-    const text = await transcribeResponse.text();
-    throw new Error(`Spracherkennung fehlgeschlagen (${transcribeResponse.status}): ${text}`);
+    if (uploadResult.status < 200 || uploadResult.status >= 300) {
+      throw new Error(
+        `Spracherkennung fehlgeschlagen (${uploadResult.status}): ${uploadResult.body}`
+      );
+    }
+
+    const transcribed = JSON.parse(uploadResult.body) as { text?: string };
+    const transcript = (transcribed.text || "").trim();
+    if (!transcript) {
+      return {
+        title: parseNote(previousNote || EMPTY_NOTE).title,
+        noteMarkdown: previousNote || EMPTY_NOTE,
+        transcript: "",
+        skipped: true,
+      };
+    }
+
+    return extractFromTranscript(sessionId, transcript, previousNote);
+  } finally {
+    try {
+      if (uploadFile.exists) {
+        uploadFile.delete();
+      }
+    } catch {
+      // Temp-Datei optional löschen
+    }
   }
-
-  const transcribed = (await transcribeResponse.json()) as { text?: string };
-  const transcript = (transcribed.text || "").trim();
-  if (!transcript) {
-    return {
-      title: parseNote(previousNote || EMPTY_NOTE).title,
-      noteMarkdown: previousNote || EMPTY_NOTE,
-      transcript: "",
-      skipped: true,
-    };
-  }
-
-  return extractFromTranscript(sessionId, transcript, previousNote);
 }

@@ -14,7 +14,7 @@ export function SystemClock() {
     return () => clearInterval(id);
   }, []);
 
-  const label = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const label = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
   return (
     <View style={styles.wrap} accessibilityRole="text" accessibilityLabel={`Uhrzeit ${label}`}>

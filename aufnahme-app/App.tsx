@@ -39,7 +39,9 @@ export default function App() {
         ? "Pausiert"
         : status === "stopped"
           ? "Beendet"
-          : "Bereit";
+          : null;
+
+  const showTitle = Boolean(title && title !== "Aufnahme");
 
   return (
     <SafeAreaProvider>
@@ -60,10 +62,12 @@ export default function App() {
           </View>
 
           <View style={styles.header}>
-            <Text style={styles.status}>{statusLabel}</Text>
-            <Text style={styles.noteTitle} numberOfLines={1}>
-              {title}
-            </Text>
+            {statusLabel ? <Text style={styles.status}>{statusLabel}</Text> : null}
+            {showTitle ? (
+              <Text style={styles.noteTitle} numberOfLines={1}>
+                {title}
+              </Text>
+            ) : null}
             {!keyConfigured ? (
               <Text style={styles.keyHint}>Schlüssel fehlt – bitte Einstellungen öffnen</Text>
             ) : null}
