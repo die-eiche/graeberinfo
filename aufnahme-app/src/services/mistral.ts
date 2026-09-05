@@ -1,6 +1,7 @@
 import { File, Paths, UploadType } from "expo-file-system";
+import { applyAllowedValueRules } from "./allowedValues";
 import { getApiKey } from "./apiKey";
-import { SYSTEM_PROMPT } from "./systemPrompt";
+import { getSystemPrompt } from "./systemPrompt";
 import type { NoteSnapshot } from "../types/session";
 
 const EXTRACT_MODEL = "open-mistral-nemo";
@@ -119,7 +120,7 @@ export async function extractFromTranscript(
       model: EXTRACT_MODEL,
       temperature: 0,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: getSystemPrompt() },
         { role: "user", content: userContent },
       ],
     }),
@@ -134,7 +135,8 @@ export async function extractFromTranscript(
     choices: Array<{ message: { content: string } }>;
   };
   const raw = data.choices?.[0]?.message?.content?.trim() || "";
-  return { ...parseNote(raw), transcript };
+  // Urne/Bestatter: Schreibweise weich anpassen; Grab: nur exakte Listen-Treffer
+  return { ...parseNote(applyAllowedValueRules(raw)), transcript };
 }
 
 export async function transcribeAndExtract(

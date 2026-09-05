@@ -35,3 +35,22 @@ npx expo start --tunnel
 
 - Expo SDK **57** (passend zur aktuellen Expo-Go-App)
 - Audio über `expo-audio` (nicht mehr `expo-av`)
+
+## Zulässige Werte (Excel)
+
+Datei: `aufnahme-app/Zulaessige Werte.xlsx`
+
+| Blatt | Regel in der App |
+|---|---|
+| Gültige Urnen | Schreibweise orientieren/korrigieren; andere Werte erlaubt |
+| Gültige Bestatter | Schreibweise orientieren/korrigieren; andere Werte erlaubt |
+| Gültige Gräber | nur exakte Treffer 1:1, sonst Feld leer |
+
+Nach Excel-Änderungen JSON neu erzeugen:
+
+```bash
+cd aufnahme-app
+pip install openpyxl
+python3 scripts/build_allowed_values.py
+```
+

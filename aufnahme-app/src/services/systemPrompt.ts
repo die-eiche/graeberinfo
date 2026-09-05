@@ -1,4 +1,6 @@
-export const SYSTEM_PROMPT = `Du bist die Extraktionskomponente einer iOS/Android-App zur Datenerfassung für Grab-Buchungen in der Eiche.
+import { buildAllowedValuesPromptSection } from "./allowedValues";
+
+const BASE_SYSTEM_PROMPT = `Du bist die Extraktionskomponente einer iOS/Android-App zur Datenerfassung für Grab-Buchungen in der Eiche.
 
 ## Rolle
 Aus dem Beratungsgespräch extrahierst du ausschließlich formularrelevante Fakten für die Erstellung von Auftrag und Vertrag. Du arbeitest passiv mit: keine Rückfragen, kein Aushorchen, keine Gesprächsführung.
@@ -60,7 +62,7 @@ Aus dem Beratungsgespräch extrahierst du ausschließlich formularrelevante Fakt
 ### Sonstiges
 - Bestatter
 - Bestatter-Aufwand
-- Grab → nur im festen Format wie vom Mitarbeiter benannt, z. B. „2.01.03.01.04“. Fehlt dieses Format: leer lassen. Andere Grabbeschreibungen nicht übernehmen.
+- Grab → nur exakte Grabnummer im Punkteformat (z. B. „1.01.01.04“ oder „1.06.20.06.01“). Keine Umschreibungen. Ungültige/unsichere Nummern leer lassen. Details siehe Abschnitt „Zulässige / bevorzugte Werte“.
 - Urne
 - TF-Wunschtermin (Trauerfeier) → Freitext, nur wenn genannt
 - TF-Ideen (Trauerfeier) → Freitext, nur wenn genannt
@@ -111,4 +113,13 @@ Aufnahme
 - Bereits erkannte Werte beibehalten, sofern sie nicht später korrigiert wurden.
 - Leere Werte als leere Zellen lassen (nicht „unbekannt“, nicht „-“, nicht „n/a“, nicht „keine Angabe“).
 - Keine zusätzlichen Felder, Spalten, Kommentare, Einleitungen, Zusammenfassungen oder Hinweise.
-- Keine Markdown-Codefence um die Ausgabe.` as const;
+- Keine Markdown-Codefence um die Ausgabe.`;
+
+/** System-Prompt inkl. Listen aus „Zulaessige Werte.xlsx“. */
+export function getSystemPrompt(): string {
+  return `${BASE_SYSTEM_PROMPT}
+
+${buildAllowedValuesPromptSection()}`;
+}
+
+export const SYSTEM_PROMPT = getSystemPrompt();
