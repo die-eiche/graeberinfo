@@ -148,8 +148,8 @@ def draw_heatmaps_png(rows: list[tuple[int, int, str]], path: Path) -> None:
         fill_rect(buf, pad + 1, y0 + 1, width - 2 * pad - 2, 16, (232, 236, 244), width)
         for d in range(7):
             for hi, hour in enumerate(HOURS):
-                # bottom row = 08:00 → hi 0 at bottom
-                row_from_top = len(HOURS) - 1 - hi
+                # top row = 08:00 → hi 0 at top
+                row_from_top = hi
                 x = pad + label_w + d * col_w
                 y = y0 + head + row_from_top * cell
                 fill_rect(buf, x, y, cell - 2, cell - 2, color_for(grid[d][hi], mx), width)
@@ -213,7 +213,7 @@ CSS = r"""
     }
     .visitor-cols {
       display: flex;
-      gap: 6px;
+      gap: 0;
     }
     .visitor-col {
       display: flex;
@@ -308,6 +308,14 @@ def inject(html: str, js: str, csv: str) -> str:
         if idx < 0:
             raise SystemExit("style-Ende nicht gefunden")
         html = html[:idx] + CSS + "\n" + html[idx:]
+    else:
+        import re
+        html = re.sub(
+            r"\n    \.visitor-card h2 \{[\s\S]*?@media \(max-width: 520px\) \{[\s\S]*?\n    \}\n",
+            "\n" + CSS + "\n",
+            html,
+            count=1,
+        )
     embed = (
         '  <script type="text/csv" id="besucher-data-csv">\n'
         + csv.rstrip()

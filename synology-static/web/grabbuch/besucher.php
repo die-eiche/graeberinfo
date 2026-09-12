@@ -8,7 +8,7 @@
  *
  * Ab 1.1.2027 00:00 (Europe/Berlin) werden Demo-Daten geleert
  * (sofort oder beim nächsten Zugriff). Danach kumulativ.
- * Aufnahme erfolgt später über Dienste.html (POST append).
+ * Aufnahme über dienste.html (POST append, Long-Press auf einen Tag).
  */
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -27,6 +27,48 @@ const BESUCHER_TZ = 'Europe/Berlin';
 function besucher_now(): DateTimeImmutable
 {
     return new DateTimeImmutable('now', new DateTimeZone(BESUCHER_TZ));
+}
+
+function besucher_pull_public_webfiles(): void
+{
+    $public = '/volume1/public/Grabbuch';
+    if (!is_dir($public)) {
+        return;
+    }
+    $names = [
+        'auswertung.html', 'auswertung-mobil.html', 'besucher.html',
+        'besucher.php', 'besucher-statistik.js', 'dienste.html', 'besucher-erfassung.js',
+    ];
+    foreach ($names as $name) {
+        $src = $public . DIRECTORY_SEPARATOR . $name;
+        $dst = __DIR__ . DIRECTORY_SEPARATOR . $name;
+        if (!is_file($src)) {
+            continue;
+        }
+        if (!is_file($dst) || filemtime($src) > filemtime($dst) || filesize($src) !== filesize($dst)) {
+            @copy($src, $dst);
+        }
+    }
+}
+
+function besucher_publish_http_alias(): void
+{
+    $grab = __DIR__;
+    $alias = dirname($grab) . DIRECTORY_SEPARATOR . 'web' . DIRECTORY_SEPARATOR . 'grabbuch';
+    if (!is_dir($alias) && !@mkdir($alias, 0777, true) && !is_dir($alias)) {
+        return;
+    }
+    $names = [
+        'auswertung.html', 'auswertung-mobil.html', 'besucher.html',
+        'besucher.php', 'besucher-statistik.js', 'dienste.html', 'besucher-erfassung.js',
+        'chart.umd.min.js', 'statistik-icon.png',
+    ];
+    foreach ($names as $name) {
+        $src = $grab . DIRECTORY_SEPARATOR . $name;
+        if (is_file($src)) {
+            @copy($src, $alias . DIRECTORY_SEPARATOR . $name);
+        }
+    }
 }
 
 function besucher_dirs(): array
@@ -68,6 +110,9 @@ function besucher_read_raw(string $path): string
 
 function besucher_is_demo(string $raw): bool
 {
+    if (strncmp($raw, "\xEF\xBB\xBF", 3) === 0) {
+        $raw = substr($raw, 3);
+    }
     return (bool) preg_match('/^[#;].*DEMO\s*=\s*1/mi', $raw);
 }
 
@@ -263,9 +308,13 @@ try {
         $action = 'load';
     }
 
+    besucher_pull_public_webfiles();
     $state = besucher_ensure_wipe(besucher_load_state());
+    if ($action === 'load' || $action === 'ensure' || $action === 'alias') {
+        besucher_publish_http_alias();
+    }
 
-    if ($action === 'load' || $action === 'ensure') {
+    if ($action === 'load' || $action === 'ensure' || $action === 'alias') {
         echo json_encode([
             'ok' => true,
             'action' => $action,
@@ -282,8 +331,8 @@ try {
     if ($action === 'append') {
         $int = (int) ($body['interessenten'] ?? 0);
         $grab = (int) ($body['grabbesucher'] ?? 0);
-        if ($int < 0 || $grab < 0 || ($int === 0 && $grab === 0)) {
-            throw new RuntimeException('Interessenten oder Grabbesucher müssen größer 0 sein.');
+        if ($int < 0 || $grab < 0 || $int > 30 || $grab > 30 || ($int === 0 && $grab === 0)) {
+            throw new RuntimeException('Anzahl muss zwischen 1 und 30 liegen (Interessenten oder Grabbesucher).');
         }
         $row = [
             'interessenten' => $int,

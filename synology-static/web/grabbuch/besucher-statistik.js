@@ -191,14 +191,14 @@
     var max = gridMax(agg.grid);
     var html = '<div class="visitor-heatmap-wrap">';
     html += '<div class="visitor-hours" aria-hidden="true">';
-    for (var r = HOURS.length - 1; r >= 0; r--) {
+    for (var r = 0; r < HOURS.length; r++) {
       html += '<div class="visitor-hour">' + hourLabel(HOURS[r]) + '</div>';
     }
     html += '</div><div class="visitor-cols">';
     for (var d = 0; d < 7; d++) {
       html += '<div class="visitor-col">';
       html += '<div class="visitor-cells">';
-      for (var r2 = HOURS.length - 1; r2 >= 0; r2--) {
+      for (var r2 = 0; r2 < HOURS.length; r2++) {
         var h = HOURS[r2];
         var v = agg.grid[d][h];
         var titleCell = WEEKDAYS[d] + ' ' + hourLabel(h) + ': ' + v + ' ' + title;
@@ -260,8 +260,8 @@
       ctx.font = 'bold 14px sans-serif';
       ctx.fillText(specs[s].title, 8, y0 + 16);
       ctx.font = '10px sans-serif';
-      for (var r = HOURS.length - 1; r >= 0; r--) {
-        var yi = y0 + headH + (HOURS.length - 1 - r) * cell;
+      for (var r = 0; r < HOURS.length; r++) {
+        var yi = y0 + headH + r * cell;
         ctx.fillStyle = '#636366';
         ctx.fillText(hourLabel(HOURS[r]), 4, yi + 11);
         for (var d = 0; d < 7; d++) {
