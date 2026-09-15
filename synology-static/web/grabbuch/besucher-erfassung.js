@@ -147,7 +147,8 @@
   function setType(t) {
     visitorType = TYPE_LABELS[t] ? t : 'hinterbliebene';
     document.querySelectorAll('.besucher-types button').forEach(function (btn) {
-      btn.classList.toggle('is-on', btn.getAttribute('data-type') === visitorType);
+      if (btn.getAttribute('data-type') === visitorType) btn.classList.add('is-on');
+      else btn.classList.remove('is-on');
     });
   }
 
