@@ -44,7 +44,7 @@ function besucher_pull_public_webfiles(): void
     }
     $names = [
         'auswertung.html', 'auswertung-mobil.html', 'besucher.html',
-        'besucher.php', 'besucher-statistik.js', 'dienste.html', 'besucher-erfassung.js',
+        'besucher.php', 'besucher-statistik.js', 'dienste.html', 'besucher-erfassung.js', 'zaehlung.php',
     ];
     foreach ($names as $name) {
         $src = $public . DIRECTORY_SEPARATOR . $name;
@@ -67,7 +67,7 @@ function besucher_publish_http_alias(): void
     }
     $names = [
         'auswertung.html', 'auswertung-mobil.html', 'besucher.html',
-        'besucher.php', 'besucher-statistik.js', 'dienste.html', 'besucher-erfassung.js',
+        'besucher.php', 'besucher-statistik.js', 'dienste.html', 'besucher-erfassung.js', 'zaehlung.php',
         'chart.umd.min.js', 'statistik-icon.png',
     ];
     foreach ($names as $name) {

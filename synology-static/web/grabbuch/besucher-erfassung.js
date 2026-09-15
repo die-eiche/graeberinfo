@@ -19,6 +19,26 @@
   var wheelReady = false;
   var toastTimer = null;
 
+  function zaehlungUrl() {
+    if (window.ZAEHLUNG_API) return window.ZAEHLUNG_API;
+    try {
+      if (window.BESUCHER_API) {
+        return String(window.BESUCHER_API).replace(/besucher\.php.*$/i, 'zaehlung.php');
+      }
+      return new URL('zaehlung.php', window.location.href).toString();
+    } catch (e) {
+      return '/grabbuch/zaehlung.php';
+    }
+  }
+
+  function logAufruf(teil) {
+    fetch(zaehlungUrl(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ programmteil: teil })
+    }).catch(function () {});
+  }
+
   function apiUrl() {
     if (window.BESUCHER_API) return window.BESUCHER_API;
     try {
@@ -162,6 +182,7 @@
     setType('hinterbliebene');
     document.getElementById('besucher-dialog').classList.add('open');
     setCount(1, true);
+    logAufruf('Unterprogramm Eintrag Besuchergruppe');
   }
 
   function closeDialog() {

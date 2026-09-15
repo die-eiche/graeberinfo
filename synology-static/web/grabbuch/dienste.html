@@ -70,9 +70,10 @@
     }
     .toolbar {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
       gap: 0.5rem;
       margin-bottom: 1rem;
+      flex-wrap: wrap;
     }
     button {
       border: 1px solid var(--border);
@@ -253,7 +254,12 @@
       transition: opacity 0.2s ease;
       z-index: 10001;
     }
-    .toast.show { opacity: 1; }
+    .gedenken-list {
+      max-height: 50vh;
+      overflow: auto;
+      margin: 0 0 1rem;
+    }
+    .gedenken-list .day-card { margin-bottom: 0.5rem; padding: 0.75rem; }
   </style>
 </head>
 <body>
@@ -267,6 +273,7 @@
     </header>
     <p class="hint">Lange auf einen Tag drücken. Im Fenster mit dem Scrollrad die Anzahl (1–30) wählen, genau eine Gruppe (Hinterbliebene, Hausführung oder Grabverkauf), danach Speichern oder Abbrechen.</p>
     <div class="toolbar">
+      <button id="gedenken" type="button">Geburts- und Sterbetage</button>
       <button id="refresh" type="button">Aktualisieren</button>
     </div>
     <div id="content"></div>
@@ -295,6 +302,15 @@
     </div>
   </div>
   <div class="toast" id="toast"></div>
+
+  <div class="dialog" id="gedenken-dialog" role="dialog" aria-modal="true" aria-labelledby="gedenken-title">
+    <div class="dialog-card">
+      <h2 id="gedenken-title">Geburts- und Sterbetage</h2>
+      <p class="dialog-date">Nächste 10 Tage</p>
+      <div class="gedenken-list" id="gedenken-list"></div>
+      <button type="button" id="gedenken-close">Schließen</button>
+    </div>
+  </div>
 
   <script>
 (function () {
@@ -331,6 +347,23 @@
   var pressStart = null;
   var suppressClick = false;
   var toastTimer = null;
+  var TEIL = {
+    gesamt: 'Gesamtprogramm',
+    gedenken: 'Unterprogramm Geburts- und Sterbetage',
+    besucher: 'Unterprogramm Eintrag Besuchergruppe'
+  };
+  var gedenkenDialog = document.getElementById('gedenken-dialog');
+  var gedenkenList = document.getElementById('gedenken-list');
+  var gedenkenBtn = document.getElementById('gedenken');
+  var gedenkenClose = document.getElementById('gedenken-close');
+
+  function logAufruf(teil) {
+    fetch(resourceUrl('zaehlung.php'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ programmteil: teil })
+    }).catch(function () {});
+  }
 
   function berlinNowParts() {
     var s = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Berlin' });
@@ -618,6 +651,7 @@
     setType('hinterbliebene');
     dialog.classList.add('open');
     setCount(1, true);
+    logAufruf(TEIL.besucher);
   }
 
   function closeDialog() {
@@ -672,6 +706,21 @@
       });
   }
 
+  function openGedenken() {
+    var list = days.length ? days : fallbackDays();
+    gedenkenList.innerHTML = list.map(function (day) {
+      return '<section class="day-card"><div class="day-title">' +
+        escapeHtml(day.weekday) + ', ' + escapeHtml(day.date) + '</div>' +
+        '<div class="note">Keine hinterlegten Geburts- oder Sterbetage für diesen Tag.</div></section>';
+    }).join('');
+    gedenkenDialog.classList.add('open');
+    logAufruf(TEIL.gedenken);
+  }
+
+  function closeGedenken() {
+    gedenkenDialog.classList.remove('open');
+  }
+
   buildWheel();
   setType('hinterbliebene');
 
@@ -696,14 +745,24 @@
     if (ev.target === dialog) closeDialog();
   });
   document.addEventListener('keydown', function (ev) {
+    if (gedenkenDialog.classList.contains('open')) {
+      if (ev.key === 'Escape') closeGedenken();
+      return;
+    }
     if (!dialog.classList.contains('open')) return;
     if (ev.key === 'Escape') closeDialog();
     if (ev.key === 'ArrowUp') { ev.preventDefault(); setCount(count - 1, true); }
     if (ev.key === 'ArrowDown') { ev.preventDefault(); setCount(count + 1, true); }
     if (ev.key === 'Enter') saveVisitor();
   });
+  gedenkenBtn.addEventListener('click', openGedenken);
+  gedenkenClose.addEventListener('click', closeGedenken);
+  gedenkenDialog.addEventListener('click', function (ev) {
+    if (ev.target === gedenkenDialog) closeGedenken();
+  });
   refreshButton.addEventListener('click', loadData);
   loadData();
+  logAufruf(TEIL.gesamt);
 })();
   </script>
 </body>
