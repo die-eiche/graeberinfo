@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Dienste">
+  <meta name="theme-color" content="#2f5d3a">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Dienste – Besucher erfassen</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f6f8;
+      --card: #ffffff;
+      --text: #1f2933;
+      --muted: #7b8794;
+      --accent: #2f5d3a;
+      --accent-2: #3d7a4c;
+      --border: #d9e2ec;
+      --grab: #2f5d3a;
+      --fuehrung: #1d4e89;
+      --verkauf: #8a5a12;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 1rem 1rem 2.5rem;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      margin-bottom: 0.85rem;
+    }
+    .logo {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      object-fit: cover;
+      border: 1px solid var(--border);
+      background: #fff;
+    }
+    .header-text h1 {
+      margin: 0;
+      font-size: 1.35rem;
+      color: var(--accent);
+    }
+    .header-text p {
+      margin: 0.2rem 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .hint {
+      background: #eef6ef;
+      border: 1px solid #cde3d1;
+      color: #345c3c;
+      border-radius: 0.75rem;
+      padding: 0.7rem 0.85rem;
+      font-size: 0.92rem;
+      margin-bottom: 1rem;
+    }
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    button {
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 0.5rem;
+      padding: 0.65rem 1rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    .day-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
+    }
+    .day-card.is-today { border-color: #8fbf96; box-shadow: 0 0 0 2px rgba(47, 93, 58, 0.12); }
+    .day-card.is-pressing { background: #eef6ef; }
+    .day-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 0.45rem;
+    }
+    .staff { line-height: 1.55; }
+    .note { color: var(--muted); font-style: italic; }
+    .counts {
+      margin-top: 0.55rem;
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+    .error {
+      background: #fff5f5;
+      border: 1px solid #f5c2c7;
+      border-radius: 0.75rem;
+      padding: 1rem;
+    }
+    .dialog {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      background: rgba(20, 28, 24, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .dialog.open { display: flex; }
+    .dialog-card {
+      width: min(420px, 100%);
+      background: #fff;
+      border-radius: 1rem;
+      padding: 1.15rem 1.15rem 1rem;
+      box-shadow: 0 18px 50px rgba(16, 24, 40, 0.28);
+    }
+    .dialog-card h2 {
+      margin: 0;
+      font-size: 1.2rem;
+      color: var(--accent);
+    }
+    .dialog-date {
+      margin: 0.25rem 0 0.9rem;
+      color: var(--muted);
+    }
+    .wheel-label {
+      text-align: center;
+      font-size: 0.82rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+    .wheel-wrap {
+      position: relative;
+      height: 168px;
+      margin: 0 auto 1rem;
+      max-width: 180px;
+    }
+    .wheel {
+      height: 168px;
+      overflow-y: auto;
+      scroll-snap-type: y mandatory;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      scrollbar-width: none;
+    }
+    .wheel::-webkit-scrollbar { display: none; }
+    .wheel-pad { height: 56px; }
+    .wheel-item {
+      height: 56px;
+      scroll-snap-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: 650;
+      color: #9aa5b1;
+    }
+    .wheel-item.is-active { color: var(--text); font-size: 2.35rem; }
+    .wheel-overlay {
+      pointer-events: none;
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(#fff 0%, rgba(255,255,255,0) 28%, rgba(255,255,255,0) 72%, #fff 100%);
+    }
+    .wheel-window {
+      pointer-events: none;
+      position: absolute;
+      left: 8px;
+      right: 8px;
+      top: 56px;
+      height: 56px;
+      border-radius: 0.6rem;
+      border: 1px solid #c5d4c8;
+      background: rgba(47, 93, 58, 0.06);
+    }
+    .type-toggle {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.45rem;
+      margin-bottom: 1rem;
+    }
+    .type-toggle button {
+      padding: 0.85rem 0.5rem;
+      font-weight: 650;
+    }
+    .type-toggle button.is-on[data-type="hinterbliebene"] {
+      background: var(--grab);
+      color: #fff;
+      border-color: var(--grab);
+    }
+    .type-toggle button.is-on[data-type="hausfuehrung"] {
+      background: var(--fuehrung);
+      color: #fff;
+      border-color: var(--fuehrung);
+    }
+    .type-toggle button.is-on[data-type="grabverkauf"] {
+      background: var(--verkauf);
+      color: #fff;
+      border-color: var(--verkauf);
+    }
+    .dialog-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.55rem;
+    }
+    .dialog-actions .save {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+      font-weight: 650;
+    }
+    .status {
+      min-height: 1.2rem;
+      margin: 0.55rem 0 0;
+      font-size: 0.9rem;
+      color: #b42318;
+      text-align: center;
+    }
+    .status.ok { color: var(--accent); }
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 1.4rem;
+      transform: translateX(-50%);
+      background: #1f2933;
+      color: #fff;
+      padding: 0.7rem 1rem;
+      border-radius: 999px;
+      font-size: 0.92rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 10001;
+    }
+    .gedenken-list {
+      max-height: 50vh;
+      overflow: auto;
+      margin: 0 0 1rem;
+    }
+    .gedenken-list .day-card { margin-bottom: 0.5rem; padding: 0.75rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <img class="logo" src="grabbuch-icon.png" alt="">
+      <div class="header-text">
+        <h1>Dienste</h1>
+        <p>Nächste 10 Tage · Besucher per langem Druck</p>
+      </div>
+    </header>
+    <p class="hint">Lange auf einen Tag drücken. Im Fenster mit dem Scrollrad die Anzahl (1–30) wählen, genau eine Gruppe (Hinterbliebene, Hausführung oder Grabverkauf), danach Speichern oder Abbrechen.</p>
+    <div class="toolbar">
+      <button id="gedenken" type="button">Geburts- und Sterbetage</button>
+      <button id="refresh" type="button">Aktualisieren</button>
+    </div>
+    <div id="content"></div>
+  </main>
+
+  <div class="dialog" id="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+    <div class="dialog-card">
+      <h2 id="dialog-title">Besucher eintragen</h2>
+      <p class="dialog-date" id="dialog-date"></p>
+      <div class="wheel-label">Anzahl · Scrollrad</div>
+      <div class="wheel-wrap">
+        <div class="wheel" id="wheel"></div>
+        <div class="wheel-overlay"></div>
+        <div class="wheel-window"></div>
+      </div>
+      <div class="type-toggle">
+        <button type="button" data-type="hinterbliebene">Hinterbliebene</button>
+        <button type="button" data-type="hausfuehrung">Hausführung</button>
+        <button type="button" data-type="grabverkauf">Grabverkauf</button>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" id="cancel">Abbrechen</button>
+        <button type="button" class="save" id="save">Speichern</button>
+      </div>
+      <p class="status" id="status"></p>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <div class="dialog" id="gedenken-dialog" role="dialog" aria-modal="true" aria-labelledby="gedenken-title">
+    <div class="dialog-card">
+      <h2 id="gedenken-title">Geburts- und Sterbetage</h2>
+      <p class="dialog-date">Nächste 10 Tage</p>
+      <div class="gedenken-list" id="gedenken-list"></div>
+      <button type="button" id="gedenken-close">Schließen</button>
+    </div>
+  </div>
+
+  <script>
+(function () {
+  var LONG_PRESS_MS = 560;
+  var MOVE_CANCEL_PX = 12;
+  var MIN = 1;
+  var MAX = 30;
+  var ITEM_H = 56;
+  var WEEKDAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+  var content = document.getElementById('content');
+  var refreshButton = document.getElementById('refresh');
+  var dialog = document.getElementById('dialog');
+  var dialogDate = document.getElementById('dialog-date');
+  var wheelEl = document.getElementById('wheel');
+  var statusEl = document.getElementById('status');
+  var toastEl = document.getElementById('toast');
+  var saveBtn = document.getElementById('save');
+  var cancelBtn = document.getElementById('cancel');
+  var typeButtons = Array.prototype.slice.call(document.querySelectorAll('.type-toggle button'));
+
+  var days = [];
+  var statsByIso = {};
+  var selectedIso = '';
+  var selectedLabel = '';
+  var count = 1;
+  var visitorType = 'hinterbliebene';
+  var TYPE_LABELS = {
+    hinterbliebene: 'Hinterbliebene',
+    hausfuehrung: 'Hausführung',
+    grabverkauf: 'Grabverkauf'
+  };
+  var wheelReady = false;
+  var pressTimer = null;
+  var pressStart = null;
+  var suppressClick = false;
+  var toastTimer = null;
+  var TEIL = {
+    gesamt: 'Gesamtprogramm',
+    gedenken: 'Unterprogramm Geburts- und Sterbetage',
+    besucher: 'Unterprogramm Eintrag Besuchergruppe'
+  };
+  var gedenkenDialog = document.getElementById('gedenken-dialog');
+  var gedenkenList = document.getElementById('gedenken-list');
+  var gedenkenBtn = document.getElementById('gedenken');
+  var gedenkenClose = document.getElementById('gedenken-close');
+
+  function logAufruf(teil) {
+    fetch(resourceUrl('zaehlung.php'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ programmteil: teil })
+    }).catch(function () {});
+  }
+
+  function berlinNowParts() {
+    var s = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Berlin' });
+    var m = s.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/);
+    return {
+      iso: m[1] + '-' + m[2] + '-' + m[3],
+      y: +m[1], mo: +m[2], d: +m[3], h: +m[4], min: +m[5],
+      text: s
+    };
+  }
+
+  function germanDate(iso) {
+    var p = iso.split('-');
+    return p[2] + '.' + p[1] + '.' + p[0];
+  }
+
+  function isoFromGerman(dateText) {
+    var m = String(dateText || '').trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (!m) return '';
+    return m[3] + '-' + pad2(m[2]) + '-' + pad2(m[1]);
+  }
+
+  function pad2(n) {
+    return String(n).padStart(2, '0');
+  }
+
+  function addDaysIso(iso, add) {
+    var p = iso.split('-').map(Number);
+    var dt = new Date(Date.UTC(p[0], p[1] - 1, p[2] + add));
+    return dt.getUTCFullYear() + '-' + pad2(dt.getUTCMonth() + 1) + '-' + pad2(dt.getUTCDate());
+  }
+
+  function weekdayName(iso) {
+    var p = iso.split('-').map(Number);
+    return WEEKDAYS[new Date(p[0], p[1] - 1, p[2]).getDay()];
+  }
+
+  function fallbackDays() {
+    var today = berlinNowParts().iso;
+    var out = [];
+    for (var i = 0; i < 10; i++) {
+      var iso = addDaysIso(today, i);
+      out.push({
+        iso: iso,
+        weekday: weekdayName(iso),
+        date: germanDate(iso),
+        staff: [],
+        note: 'Kein Dienst geladen.'
+      });
+    }
+    return out;
+  }
+
+  function normalizeDays(data) {
+    var list = (data && data.days) || [];
+    if (!list.length) return fallbackDays();
+    return list.map(function (day) {
+      var iso = isoFromGerman(day.date) || day.iso || '';
+      return {
+        iso: iso,
+        weekday: day.weekday || (iso ? weekdayName(iso) : ''),
+        date: day.date || (iso ? germanDate(iso) : ''),
+        staff: Array.isArray(day.staff) ? day.staff : [],
+        note: day.note || ''
+      };
+    });
+  }
+
+  function apiCandidates() {
+    var here = window.location.href;
+    return [
+      new URL('../Ehrenamt/api/dienste.php', here).toString(),
+      new URL('/ehrenamt/api/dienste.php', here).toString(),
+      new URL('../api/dienste.php', here).toString()
+    ];
+  }
+
+  function resourceUrl(rel) {
+    try { return new URL(rel, window.location.href).toString(); }
+    catch (e) { return rel; }
+  }
+
+  function parseTs(raw) {
+    var s = String(raw || '').trim().replace('T', ' ');
+    var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return m[1] + '-' + m[2] + '-' + m[3];
+    m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+    if (m) return m[3] + '-' + pad2(m[2]) + '-' + pad2(m[1]);
+    return '';
+  }
+
+  function emptyStats() {
+    return { hinterbliebene: 0, hausfuehrung: 0, grabverkauf: 0 };
+  }
+
+  function countsFromRow(row) {
+    var out = emptyStats();
+    var kat = String(row.kategorie || '').toLowerCase()
+      .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue');
+    if (kat === 'grabbesucher') kat = 'hinterbliebene';
+    if (kat === 'interessenten') kat = 'grabverkauf';
+    var n = Math.max(0, +row.anzahl || 0);
+    if (out.hasOwnProperty(kat) && n) {
+      out[kat] = n;
+      return out;
+    }
+    out.hinterbliebene = Math.max(0, +(row.hinterbliebene != null ? row.hinterbliebene : row.grabbesucher) || 0);
+    out.hausfuehrung = Math.max(0, +row.hausfuehrung || 0);
+    out.grabverkauf = Math.max(0, +(row.grabverkauf != null ? row.grabverkauf : row.interessenten) || 0);
+    return out;
+  }
+
+  function loadStats(rows) {
+    statsByIso = {};
+    (rows || []).forEach(function (row) {
+      var iso = parseTs(row.zeitstempel);
+      if (!iso) return;
+      if (!statsByIso[iso]) statsByIso[iso] = emptyStats();
+      var c = countsFromRow(row);
+      statsByIso[iso].hinterbliebene += c.hinterbliebene;
+      statsByIso[iso].hausfuehrung += c.hausfuehrung;
+      statsByIso[iso].grabverkauf += c.grabverkauf;
+    });
+  }
+
+  function countsText(iso) {
+    var s = statsByIso[iso] || emptyStats();
+    if (!s.hinterbliebene && !s.hausfuehrung && !s.grabverkauf) {
+      return 'Noch keine Besucher für diesen Tag gespeichert.';
+    }
+    return 'Gespeichert: ' + s.hinterbliebene + ' Hinterbliebene, ' +
+      s.hausfuehrung + ' Hausführung, ' + s.grabverkauf + ' Grabverkauf';
+  }
+
+  function renderDays() {
+    var today = berlinNowParts().iso;
+    content.innerHTML = days.map(function (day) {
+      var staff = day.staff && day.staff.length
+        ? escapeHtml(day.staff.join(', '))
+        : '<span class="note">' + escapeHtml(day.note || 'Kein Dienst eingetragen.') + '</span>';
+      var cls = 'day-card' + (day.iso === today ? ' is-today' : '');
+      return '<section class="' + cls + '" data-iso="' + escapeAttr(day.iso) + '" data-label="' +
+        escapeAttr(day.weekday + ', ' + day.date) + '">' +
+        '<div class="day-title">' + escapeHtml(day.weekday) + ', ' + escapeHtml(day.date) + '</div>' +
+        '<div class="staff">' + staff + '</div>' +
+        '<div class="counts">' + escapeHtml(countsText(day.iso)) + '</div>' +
+        '</section>';
+    }).join('');
+    bindCards();
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function escapeAttr(s) { return escapeHtml(s); }
+
+  function fetchFirst(urls) {
+    var i = 0;
+    function next() {
+      if (i >= urls.length) return Promise.reject(new Error('Keine Dienst-API erreichbar'));
+      var url = urls[i++] + (urls[i - 1].indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+      return fetch(url, { cache: 'no-store' }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }).catch(function () { return next(); });
+    }
+    return next();
+  }
+
+  function loadBesucher() {
+    return fetch(resourceUrl('besucher.php?action=load&t=' + Date.now()), { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data && data.ok) loadStats(data.rows || []);
+      })
+      .catch(function () {});
+  }
+
+  function loadData() {
+    content.innerHTML = '<p>Lade Dienste…</p>';
+    refreshButton.disabled = true;
+    var duty = fetchFirst(apiCandidates()).then(normalizeDays).catch(function () {
+      return fallbackDays();
+    });
+    return Promise.all([duty, loadBesucher()]).then(function (parts) {
+      days = parts[0];
+      renderDays();
+    }).catch(function (err) {
+      content.innerHTML = '<div class="error"><strong>Fehler:</strong> ' + escapeHtml(err.message) + '</div>';
+    }).then(function () {
+      refreshButton.disabled = false;
+    });
+  }
+
+  function clearPress() {
+    if (pressTimer) {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+    }
+    pressStart = null;
+    document.querySelectorAll('.day-card.is-pressing').forEach(function (el) {
+      el.classList.remove('is-pressing');
+    });
+  }
+
+  function bindCards() {
+    content.querySelectorAll('.day-card').forEach(function (card) {
+      card.addEventListener('pointerdown', function (ev) {
+        if (ev.button && ev.button !== 0) return;
+        clearPress();
+        pressStart = { x: ev.clientX, y: ev.clientY, card: card };
+        card.classList.add('is-pressing');
+        try { card.setPointerCapture(ev.pointerId); } catch (e1) {}
+        pressTimer = setTimeout(function () {
+          pressTimer = null;
+          suppressClick = true;
+          openDialog(card.getAttribute('data-iso'), card.getAttribute('data-label'));
+          clearPress();
+        }, LONG_PRESS_MS);
+      });
+      card.addEventListener('pointermove', function (ev) {
+        if (!pressStart) return;
+        var dx = ev.clientX - pressStart.x;
+        var dy = ev.clientY - pressStart.y;
+        if ((dx * dx + dy * dy) > MOVE_CANCEL_PX * MOVE_CANCEL_PX) clearPress();
+      });
+      card.addEventListener('pointerup', clearPress);
+      card.addEventListener('pointercancel', clearPress);
+      card.addEventListener('contextmenu', function (ev) {
+        ev.preventDefault();
+        clearPress();
+        openDialog(card.getAttribute('data-iso'), card.getAttribute('data-label'));
+      });
+      card.addEventListener('click', function (ev) {
+        if (suppressClick) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          suppressClick = false;
+        }
+      });
+    });
+  }
+
+  function buildWheel() {
+    var html = '<div class="wheel-pad"></div>';
+    for (var n = MIN; n <= MAX; n++) {
+      html += '<div class="wheel-item" data-n="' + n + '">' + n + '</div>';
+    }
+    html += '<div class="wheel-pad"></div>';
+    wheelEl.innerHTML = html;
+  }
+
+  function setCount(n, scroll) {
+    count = Math.max(MIN, Math.min(MAX, n | 0));
+    wheelEl.querySelectorAll('.wheel-item').forEach(function (el) {
+      el.classList.toggle('is-active', +el.getAttribute('data-n') === count);
+    });
+    if (scroll) {
+      wheelReady = false;
+      wheelEl.scrollTop = (count - MIN) * ITEM_H;
+      requestAnimationFrame(function () { wheelReady = true; });
+    }
+  }
+
+  function countFromScroll() {
+    return Math.max(MIN, Math.min(MAX, Math.round(wheelEl.scrollTop / ITEM_H) + MIN));
+  }
+
+  function setType(t) {
+    visitorType = TYPE_LABELS[t] ? t : 'hinterbliebene';
+    typeButtons.forEach(function (btn) {
+      if (btn.getAttribute('data-type') === visitorType) btn.classList.add('is-on');
+      else btn.classList.remove('is-on');
+    });
+  }
+
+  function openDialog(iso, label) {
+    selectedIso = iso;
+    selectedLabel = label || germanDate(iso);
+    dialogDate.textContent = selectedLabel;
+    statusEl.textContent = '';
+    statusEl.className = 'status';
+    saveBtn.disabled = false;
+    setType('hinterbliebene');
+    dialog.classList.add('open');
+    setCount(1, true);
+    logAufruf(TEIL.besucher);
+  }
+
+  function closeDialog() {
+    dialog.classList.remove('open');
+    selectedIso = '';
+  }
+
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2600);
+  }
+
+  function timestampFor(iso) {
+    var now = berlinNowParts();
+    var h = now.iso === iso ? now.h : 12;
+    if (h < 8) h = 8;
+    if (h > 19) h = 19;
+    return iso + ' ' + pad2(h) + ':00';
+  }
+
+  function saveVisitor() {
+    if (!selectedIso || saveBtn.disabled) return;
+    var body = {
+      action: 'append',
+      kategorie: visitorType,
+      anzahl: count,
+      zeitstempel: timestampFor(selectedIso)
+    };
+    saveBtn.disabled = true;
+    statusEl.textContent = 'Speichere…';
+    statusEl.className = 'status';
+    fetch(resourceUrl('besucher.php'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); })
+      .then(function (res) {
+        if (!res.json || !res.json.ok) {
+          throw new Error((res.json && res.json.error) || 'Speichern fehlgeschlagen');
+        }
+        var label = count + ' ' + (TYPE_LABELS[visitorType] || visitorType);
+        closeDialog();
+        showToast('Gespeichert: ' + label);
+        return loadBesucher().then(renderDays);
+      })
+      .catch(function (err) {
+        statusEl.textContent = err.message || String(err);
+        statusEl.className = 'status';
+        saveBtn.disabled = false;
+      });
+  }
+
+  function openGedenken() {
+    var list = days.length ? days : fallbackDays();
+    gedenkenList.innerHTML = list.map(function (day) {
+      return '<section class="day-card"><div class="day-title">' +
+        escapeHtml(day.weekday) + ', ' + escapeHtml(day.date) + '</div>' +
+        '<div class="note">Keine hinterlegten Geburts- oder Sterbetage für diesen Tag.</div></section>';
+    }).join('');
+    gedenkenDialog.classList.add('open');
+    logAufruf(TEIL.gedenken);
+  }
+
+  function closeGedenken() {
+    gedenkenDialog.classList.remove('open');
+  }
+
+  buildWheel();
+  setType('hinterbliebene');
+
+  wheelEl.addEventListener('scroll', function () {
+    if (!wheelReady) return;
+    var n = countFromScroll();
+    if (n !== count) setCount(n, false);
+  });
+
+  dialog.addEventListener('wheel', function (ev) {
+    if (!dialog.classList.contains('open')) return;
+    ev.preventDefault();
+    setCount(count + (ev.deltaY > 0 ? 1 : -1), true);
+  }, { passive: false });
+
+  typeButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () { setType(btn.getAttribute('data-type')); });
+  });
+  cancelBtn.addEventListener('click', closeDialog);
+  saveBtn.addEventListener('click', saveVisitor);
+  dialog.addEventListener('click', function (ev) {
+    if (ev.target === dialog) closeDialog();
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (gedenkenDialog.classList.contains('open')) {
+      if (ev.key === 'Escape') closeGedenken();
+      return;
+    }
+    if (!dialog.classList.contains('open')) return;
+    if (ev.key === 'Escape') closeDialog();
+    if (ev.key === 'ArrowUp') { ev.preventDefault(); setCount(count - 1, true); }
+    if (ev.key === 'ArrowDown') { ev.preventDefault(); setCount(count + 1, true); }
+    if (ev.key === 'Enter') saveVisitor();
+  });
+  gedenkenBtn.addEventListener('click', openGedenken);
+  gedenkenClose.addEventListener('click', closeGedenken);
+  gedenkenDialog.addEventListener('click', function (ev) {
+    if (ev.target === gedenkenDialog) closeGedenken();
+  });
+  refreshButton.addEventListener('click', loadData);
+  loadData();
+  logAufruf(TEIL.gesamt);
+})();
+  </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+Aufrufzählung dienste.html
+==========================
+
+Datei:
+  aufrufe.csv    Timestamp;Programmteil;IP-Adresse
+
+Programmteile:
+  Gesamtprogramm
+  Unterprogramm Geburts- und Sterbetage
+  Unterprogramm Eintrag Besuchergruppe
+
+Jeder Aufruf des jeweiligen Programmteils schreibt eine Zeile.
+Die IP-Adresse setzt der Server (zaehlung.php).
