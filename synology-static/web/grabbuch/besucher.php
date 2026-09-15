@@ -3,7 +3,9 @@
  * Besucherstatistik: Lesen, Anhängen, Demo-Leerung, monatliche Sicherung.
  *
  * GET  action=load     → JSON { rows, demo, wiped, source }
- * POST action=append   → { interessenten, grabbesucher, zeitstempel? }
+ * POST action=append   → { kategorie, anzahl, zeitstempel? }
+ *   kategorie: hinterbliebene | hausfuehrung | grabverkauf
+ *   anzahl: 1–30; jeder Eintrag genau eine Gruppe.
  * POST action=snapshot → { png: data-url oder base64, month: YYYY-MM }
  *
  * Ab 1.1.2027 00:00 (Europe/Berlin) werden Demo-Daten geleert
@@ -23,6 +25,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 const BESUCHER_CUTOFF = '2027-01-01 00:00:00';
 const BESUCHER_TZ = 'Europe/Berlin';
+const BESUCHER_LABELS = [
+    'hinterbliebene' => 'Hinterbliebene',
+    'hausfuehrung' => 'Hausführung',
+    'grabverkauf' => 'Grabverkauf',
+];
 
 function besucher_now(): DateTimeImmutable
 {
@@ -122,8 +129,41 @@ function besucher_empty_csv(bool $demo): string
     if ($demo) {
         $out .= "# DEMO=1; Fantasiewerte zum Spielen, Leerung am 1.1.2027 00:00 Europe/Berlin\n";
     }
-    $out .= "Interessenten;Grabbesucher;Zeitstempel\n";
+    $out .= "Kategorie;Anzahl;Zeitstempel\n";
     return $out;
+}
+
+function besucher_normalize_kategorie(string $raw): ?string
+{
+    $k = mb_strtolower(trim($raw), 'UTF-8');
+    $k = strtr($k, ['ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue', 'ß' => 'ss']);
+    $map = [
+        'hinterbliebene' => 'hinterbliebene',
+        'grabbesucher' => 'hinterbliebene',
+        'hausfuehrung' => 'hausfuehrung',
+        'hausfuhrung' => 'hausfuehrung',
+        'fuehrung' => 'hausfuehrung',
+        'grabverkauf' => 'grabverkauf',
+        'interessenten' => 'grabverkauf',
+        'interessent' => 'grabverkauf',
+        'kategorie' => null,
+    ];
+    return $map[$k] ?? null;
+}
+
+function besucher_row(string $kategorie, int $anzahl, string $ts): array
+{
+    $row = [
+        'kategorie' => $kategorie,
+        'anzahl' => $anzahl,
+        'label' => BESUCHER_LABELS[$kategorie] ?? $kategorie,
+        'zeitstempel' => $ts,
+        'hinterbliebene' => 0,
+        'hausfuehrung' => 0,
+        'grabverkauf' => 0,
+    ];
+    $row[$kategorie] = $anzahl;
+    return $row;
 }
 
 function besucher_parse_rows(string $raw): array
@@ -140,25 +180,34 @@ function besucher_parse_rows(string $raw): array
             continue;
         }
         $parts = explode(';', $line);
-        $first = strtolower(trim($parts[0] ?? ''));
-        if (!$headerSeen && ($first === 'interessenten' || $first === 'zeitstempel')) {
+        $first = strtolower(trim(strtr($parts[0] ?? '', ['ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue'])));
+        if (!$headerSeen && in_array($first, ['interessenten', 'zeitstempel', 'kategorie', 'hinterbliebene'], true)) {
             $headerSeen = true;
             continue;
         }
         if (count($parts) < 3) {
             continue;
         }
-        $int = (int) trim($parts[0]);
-        $grab = (int) trim($parts[1]);
-        $ts = trim($parts[2]);
+        $ts = trim($parts[count($parts) - 1]);
         if ($ts === '') {
             continue;
         }
-        $rows[] = [
-            'interessenten' => max(0, $int),
-            'grabbesucher' => max(0, $grab),
-            'zeitstempel' => $ts,
-        ];
+        $kat = besucher_normalize_kategorie(trim($parts[0]));
+        if ($kat !== null) {
+            $n = (int) trim($parts[1]);
+            if ($n > 0) {
+                $rows[] = besucher_row($kat, $n, $ts);
+            }
+            continue;
+        }
+        $int = (int) trim($parts[0]);
+        $grab = (int) trim($parts[1]);
+        if ($grab > 0) {
+            $rows[] = besucher_row('hinterbliebene', $grab, $ts);
+        }
+        if ($int > 0) {
+            $rows[] = besucher_row('grabverkauf', $int, $ts);
+        }
     }
     return $rows;
 }
@@ -172,10 +221,18 @@ function besucher_write_csv(string $path, array $rows, bool $demo): void
     }
     fwrite($fh, besucher_empty_csv($demo));
     foreach ($rows as $row) {
+        $kat = (string) ($row['kategorie'] ?? '');
+        if ($kat === '' || !isset(BESUCHER_LABELS[$kat])) {
+            continue;
+        }
+        $n = (int) ($row['anzahl'] ?? $row[$kat] ?? 0);
+        if ($n <= 0) {
+            continue;
+        }
         fwrite(
             $fh,
-            (int) $row['interessenten'] . ';' .
-            (int) $row['grabbesucher'] . ';' .
+            BESUCHER_LABELS[$kat] . ';' .
+            $n . ';' .
             str_replace(["\r", "\n", ';'], ['', '', ','], (string) $row['zeitstempel']) . "\n"
         );
     }
@@ -322,6 +379,7 @@ try {
             'wiped' => $state['wiped'] ?? false,
             'cutoff' => BESUCHER_CUTOFF,
             'now' => besucher_now()->format('c'),
+            'kategorien' => BESUCHER_LABELS,
             'count' => count($state['rows']),
             'rows' => $state['rows'],
         ], JSON_UNESCAPED_UNICODE);
@@ -329,16 +387,30 @@ try {
     }
 
     if ($action === 'append') {
-        $int = (int) ($body['interessenten'] ?? 0);
-        $grab = (int) ($body['grabbesucher'] ?? 0);
-        if ($int < 0 || $grab < 0 || $int > 30 || $grab > 30 || ($int === 0 && $grab === 0)) {
-            throw new RuntimeException('Anzahl muss zwischen 1 und 30 liegen (Interessenten oder Grabbesucher).');
+        $kat = besucher_normalize_kategorie((string) ($body['kategorie'] ?? $body['gruppe'] ?? ''));
+        $n = (int) ($body['anzahl'] ?? $body['count'] ?? 0);
+        if ($kat === null) {
+            $counts = [
+                'hinterbliebene' => (int) ($body['hinterbliebene'] ?? $body['grabbesucher'] ?? 0),
+                'hausfuehrung' => (int) ($body['hausfuehrung'] ?? 0),
+                'grabverkauf' => (int) ($body['grabverkauf'] ?? $body['interessenten'] ?? 0),
+            ];
+            $positive = [];
+            foreach ($counts as $key => $val) {
+                if ($val > 0) {
+                    $positive[$key] = $val;
+                }
+            }
+            if (count($positive) !== 1) {
+                throw new RuntimeException('Genau eine Besuchergruppe mit Anzahl 1–30 angeben.');
+            }
+            $kat = array_keys($positive)[0];
+            $n = $positive[$kat];
         }
-        $row = [
-            'interessenten' => $int,
-            'grabbesucher' => $grab,
-            'zeitstempel' => besucher_normalize_ts($body['zeitstempel'] ?? null),
-        ];
+        if ($n < 1 || $n > 30) {
+            throw new RuntimeException('Anzahl muss zwischen 1 und 30 liegen.');
+        }
+        $row = besucher_row($kat, $n, besucher_normalize_ts($body['zeitstempel'] ?? null));
         $state['rows'][] = $row;
         besucher_sync_all($state['rows'], $state['demo']);
         echo json_encode([

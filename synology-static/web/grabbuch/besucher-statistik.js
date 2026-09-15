@@ -1,5 +1,6 @@
-/* Besucherstatistik: drei Wochentag-Stunden-Heatmaps (Interessenten, Grabbesucher, Gesamt).
-   Öffentlich, ohne Parameter u=2004. Demo-Daten bis 1.1.2027 00:00 Europe/Berlin. */
+/* Besucherstatistik: drei Wochentag-Stunden-Heatmaps (Hinterbliebene, Hausführung, Grabverkauf).
+   Öffentlich, ohne Parameter u=2004. Demo-Daten bis 1.1.2027 00:00 Europe/Berlin.
+   Jeder Eintrag ist genau eine Besuchergruppe. */
 (function () {
   var PALETTE = [
     '#f8696b', '#f97b6e', '#fa8e72', '#fba075', '#fcb379',
@@ -10,6 +11,38 @@
   var HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
   var CUTOFF_MS = Date.parse('2027-01-01T00:00:00+01:00');
   var SNAPSHOT_KEY = 'eiche_besucher_snapshot_month';
+  var CATEGORIES = [
+    { key: 'hinterbliebene', label: 'Hinterbliebene' },
+    { key: 'hausfuehrung', label: 'Hausführung' },
+    { key: 'grabverkauf', label: 'Grabverkauf' }
+  ];
+
+  function normalizeKategorie(raw) {
+    var k = String(raw || '').trim().toLowerCase()
+      .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
+    if (k === 'hinterbliebene' || k === 'grabbesucher') return 'hinterbliebene';
+    if (k === 'hausfuehrung' || k === 'hausfuhrung' || k === 'fuehrung') return 'hausfuehrung';
+    if (k === 'grabverkauf' || k === 'interessenten' || k === 'interessent') return 'grabverkauf';
+    return '';
+  }
+
+  function emptyCounts() {
+    return { hinterbliebene: 0, hausfuehrung: 0, grabverkauf: 0 };
+  }
+
+  function countsFromRow(row) {
+    var out = emptyCounts();
+    var kat = normalizeKategorie(row.kategorie || row.label || '');
+    var n = Math.max(0, parseInt(row.anzahl, 10) || 0);
+    if (kat && n) {
+      out[kat] = n;
+      return out;
+    }
+    out.hinterbliebene = Math.max(0, parseInt(row.hinterbliebene != null ? row.hinterbliebene : row.grabbesucher, 10) || 0);
+    out.hausfuehrung = Math.max(0, parseInt(row.hausfuehrung, 10) || 0);
+    out.grabverkauf = Math.max(0, parseInt(row.grabverkauf != null ? row.grabverkauf : row.interessenten, 10) || 0);
+    return out;
+  }
 
   function berlinNow() {
     try {
@@ -65,17 +98,27 @@
       if (!trim || trim.charAt(0) === '#') continue;
       var parts = line.split(';');
       var first = (parts[0] || '').trim().toLowerCase();
-      if (!headerSeen && (first === 'interessenten' || first === 'zeitstempel')) {
+      if (!headerSeen && (first === 'interessenten' || first === 'zeitstempel' || first === 'kategorie' || first === 'hinterbliebene')) {
         headerSeen = true;
         continue;
       }
       if (parts.length < 3) continue;
-      var ts = parseTs(parts[2]);
+      var ts = parseTs(parts[parts.length - 1]);
       if (!ts) continue;
       if (ts.h < 8 || ts.h > 19) continue;
+      var kat = normalizeKategorie(parts[0]);
+      var counts = emptyCounts();
+      if (kat) {
+        counts[kat] = Math.max(0, parseInt(parts[1], 10) || 0);
+      } else {
+        counts.grabverkauf = Math.max(0, parseInt(parts[0], 10) || 0);
+        counts.hinterbliebene = Math.max(0, parseInt(parts[1], 10) || 0);
+      }
+      if (!counts.hinterbliebene && !counts.hausfuehrung && !counts.grabverkauf) continue;
       rows.push({
-        interessenten: Math.max(0, parseInt(parts[0], 10) || 0),
-        grabbesucher: Math.max(0, parseInt(parts[1], 10) || 0),
+        hinterbliebene: counts.hinterbliebene,
+        hausfuehrung: counts.hausfuehrung,
+        grabverkauf: counts.grabverkauf,
         y: ts.y, mo: ts.mo, d: ts.d, h: ts.h
       });
     }
@@ -101,9 +144,11 @@
       var rows = (json.rows || []).map(function (row) {
         var ts = parseTs(row.zeitstempel);
         if (!ts) return null;
+        var counts = countsFromRow(row);
         return {
-          interessenten: +row.interessenten || 0,
-          grabbesucher: +row.grabbesucher || 0,
+          hinterbliebene: counts.hinterbliebene,
+          hausfuehrung: counts.hausfuehrung,
+          grabverkauf: counts.grabverkauf,
           y: ts.y, mo: ts.mo, d: ts.d, h: ts.h
         };
       }).filter(Boolean);
@@ -143,7 +188,7 @@
     for (var i = 0; i < rows.length; i++) {
       var row = rows[i];
       var wd = weekdayIndex(row.y, row.mo, row.d);
-      var val = field === 'gesamt' ? (row.interessenten + row.grabbesucher) : (row[field] || 0);
+      var val = row[field] || 0;
       grid[wd][row.h] += val;
       dates[wd][row.y + '-' + row.mo + '-' + row.d] = true;
     }
@@ -218,7 +263,7 @@
     var n = 0;
     for (var i = 0; i < parsed.rows.length; i++) {
       var row = parsed.rows[i];
-      n += field === 'gesamt' ? (row.interessenten + row.grabbesucher) : (row[field] || 0);
+      n += row[field] || 0;
     }
     var bits = [];
     if (parsed.wiped) bits.push('Demo-Daten am 1.1.2027 geleert');
@@ -230,11 +275,7 @@
   }
 
   function drawSnapshotCanvas(parsed) {
-    var specs = [
-      { title: 'Interessenten', field: 'interessenten' },
-      { title: 'Grabbesucher', field: 'grabbesucher' },
-      { title: 'Gesamtbesucher', field: 'gesamt' }
-    ];
+    var specs = CATEGORIES.map(function (c) { return { title: c.label, field: c.key }; });
     var cell = 14;
     var labelW = 52;
     var headH = 36;
@@ -305,18 +346,23 @@
   }
 
   function show() {
-    ['visitor-interessenten-card', 'visitor-grab-card', 'visitor-gesamt-card'].forEach(function (id) {
+    var neu = document.getElementById('visitor-hinterbliebene-card');
+    ['visitor-hinterbliebene-card', 'visitor-hausfuehrung-card', 'visitor-grabverkauf-card'].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) el.hidden = false;
+    });
+    ['visitor-interessenten-card', 'visitor-grab-card', 'visitor-gesamt-card'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.hidden = !!neu;
     });
   }
 
   function render(parsed) {
     show();
     var map = [
-      { heat: 'visitor-interessenten-heatmap', sub: 'visitor-interessenten-sub', field: 'interessenten', title: 'Interessenten' },
-      { heat: 'visitor-grab-heatmap', sub: 'visitor-grab-sub', field: 'grabbesucher', title: 'Grabbesucher' },
-      { heat: 'visitor-gesamt-heatmap', sub: 'visitor-gesamt-sub', field: 'gesamt', title: 'Gesamtbesucher' }
+      { heat: 'visitor-hinterbliebene-heatmap', sub: 'visitor-hinterbliebene-sub', field: 'hinterbliebene', title: 'Hinterbliebene' },
+      { heat: 'visitor-hausfuehrung-heatmap', sub: 'visitor-hausfuehrung-sub', field: 'hausfuehrung', title: 'Hausführung' },
+      { heat: 'visitor-grabverkauf-heatmap', sub: 'visitor-grabverkauf-sub', field: 'grabverkauf', title: 'Grabverkauf' }
     ];
     for (var i = 0; i < map.length; i++) {
       var spec = map[i];
@@ -330,7 +376,7 @@
   function start() {
     loadRows().then(render).catch(function (err) {
       show();
-      var sub = document.getElementById('visitor-interessenten-sub');
+      var sub = document.getElementById('visitor-hinterbliebene-sub') || document.getElementById('visitor-interessenten-sub');
       if (sub) sub.textContent = 'Besucherdaten nicht geladen: ' + (err && err.message ? err.message : String(err));
     });
   }

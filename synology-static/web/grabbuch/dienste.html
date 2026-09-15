@@ -20,7 +20,8 @@
       --accent-2: #3d7a4c;
       --border: #d9e2ec;
       --grab: #2f5d3a;
-      --int: #1d4e89;
+      --fuehrung: #1d4e89;
+      --verkauf: #8a5a12;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; }
@@ -195,23 +196,28 @@
     }
     .type-toggle {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.55rem;
+      grid-template-columns: 1fr;
+      gap: 0.45rem;
       margin-bottom: 1rem;
     }
     .type-toggle button {
       padding: 0.85rem 0.5rem;
       font-weight: 650;
     }
-    .type-toggle button.is-on[data-type="grabbesucher"] {
+    .type-toggle button.is-on[data-type="hinterbliebene"] {
       background: var(--grab);
       color: #fff;
       border-color: var(--grab);
     }
-    .type-toggle button.is-on[data-type="interessenten"] {
-      background: var(--int);
+    .type-toggle button.is-on[data-type="hausfuehrung"] {
+      background: var(--fuehrung);
       color: #fff;
-      border-color: var(--int);
+      border-color: var(--fuehrung);
+    }
+    .type-toggle button.is-on[data-type="grabverkauf"] {
+      background: var(--verkauf);
+      color: #fff;
+      border-color: var(--verkauf);
     }
     .dialog-actions {
       display: grid;
@@ -259,7 +265,7 @@
         <p>Nächste 10 Tage · Besucher per langem Druck</p>
       </div>
     </header>
-    <p class="hint">Lange auf einen Tag drücken. Im Fenster mit dem Scrollrad die Anzahl (1–30) wählen, dann Grabbesucher oder Interessenten, danach Speichern oder Abbrechen.</p>
+    <p class="hint">Lange auf einen Tag drücken. Im Fenster mit dem Scrollrad die Anzahl (1–30) wählen, genau eine Gruppe (Hinterbliebene, Hausführung oder Grabverkauf), danach Speichern oder Abbrechen.</p>
     <div class="toolbar">
       <button id="refresh" type="button">Aktualisieren</button>
     </div>
@@ -277,8 +283,9 @@
         <div class="wheel-window"></div>
       </div>
       <div class="type-toggle">
-        <button type="button" data-type="grabbesucher">Grabbesucher</button>
-        <button type="button" data-type="interessenten">Interessenten</button>
+        <button type="button" data-type="hinterbliebene">Hinterbliebene</button>
+        <button type="button" data-type="hausfuehrung">Hausführung</button>
+        <button type="button" data-type="grabverkauf">Grabverkauf</button>
       </div>
       <div class="dialog-actions">
         <button type="button" id="cancel">Abbrechen</button>
@@ -313,7 +320,12 @@
   var selectedIso = '';
   var selectedLabel = '';
   var count = 1;
-  var visitorType = 'grabbesucher';
+  var visitorType = 'hinterbliebene';
+  var TYPE_LABELS = {
+    hinterbliebene: 'Hinterbliebene',
+    hausfuehrung: 'Hausführung',
+    grabverkauf: 'Grabverkauf'
+  };
   var wheelReady = false;
   var pressTimer = null;
   var pressStart = null;
@@ -411,7 +423,24 @@
   }
 
   function emptyStats() {
-    return { interessenten: 0, grabbesucher: 0 };
+    return { hinterbliebene: 0, hausfuehrung: 0, grabverkauf: 0 };
+  }
+
+  function countsFromRow(row) {
+    var out = emptyStats();
+    var kat = String(row.kategorie || '').toLowerCase()
+      .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue');
+    if (kat === 'grabbesucher') kat = 'hinterbliebene';
+    if (kat === 'interessenten') kat = 'grabverkauf';
+    var n = Math.max(0, +row.anzahl || 0);
+    if (out.hasOwnProperty(kat) && n) {
+      out[kat] = n;
+      return out;
+    }
+    out.hinterbliebene = Math.max(0, +(row.hinterbliebene != null ? row.hinterbliebene : row.grabbesucher) || 0);
+    out.hausfuehrung = Math.max(0, +row.hausfuehrung || 0);
+    out.grabverkauf = Math.max(0, +(row.grabverkauf != null ? row.grabverkauf : row.interessenten) || 0);
+    return out;
   }
 
   function loadStats(rows) {
@@ -420,17 +449,20 @@
       var iso = parseTs(row.zeitstempel);
       if (!iso) return;
       if (!statsByIso[iso]) statsByIso[iso] = emptyStats();
-      statsByIso[iso].interessenten += Math.max(0, +row.interessenten || 0);
-      statsByIso[iso].grabbesucher += Math.max(0, +row.grabbesucher || 0);
+      var c = countsFromRow(row);
+      statsByIso[iso].hinterbliebene += c.hinterbliebene;
+      statsByIso[iso].hausfuehrung += c.hausfuehrung;
+      statsByIso[iso].grabverkauf += c.grabverkauf;
     });
   }
 
   function countsText(iso) {
     var s = statsByIso[iso] || emptyStats();
-    if (!s.interessenten && !s.grabbesucher) {
+    if (!s.hinterbliebene && !s.hausfuehrung && !s.grabverkauf) {
       return 'Noch keine Besucher für diesen Tag gespeichert.';
     }
-    return 'Gespeichert: ' + s.grabbesucher + ' Grabbesucher, ' + s.interessenten + ' Interessenten';
+    return 'Gespeichert: ' + s.hinterbliebene + ' Hinterbliebene, ' +
+      s.hausfuehrung + ' Hausführung, ' + s.grabverkauf + ' Grabverkauf';
   }
 
   function renderDays() {
@@ -569,7 +601,7 @@
   }
 
   function setType(t) {
-    visitorType = t === 'interessenten' ? 'interessenten' : 'grabbesucher';
+    visitorType = TYPE_LABELS[t] ? t : 'hinterbliebene';
     typeButtons.forEach(function (btn) {
       btn.classList.toggle('is-on', btn.getAttribute('data-type') === visitorType);
     });
@@ -582,7 +614,7 @@
     statusEl.textContent = '';
     statusEl.className = 'status';
     saveBtn.disabled = false;
-    setType('grabbesucher');
+    setType('hinterbliebene');
     dialog.classList.add('open');
     setCount(1, true);
   }
@@ -611,8 +643,8 @@
     if (!selectedIso || saveBtn.disabled) return;
     var body = {
       action: 'append',
-      interessenten: visitorType === 'interessenten' ? count : 0,
-      grabbesucher: visitorType === 'grabbesucher' ? count : 0,
+      kategorie: visitorType,
+      anzahl: count,
       zeitstempel: timestampFor(selectedIso)
     };
     saveBtn.disabled = true;
@@ -627,7 +659,7 @@
         if (!res.json || !res.json.ok) {
           throw new Error((res.json && res.json.error) || 'Speichern fehlgeschlagen');
         }
-        var label = count + ' ' + (visitorType === 'grabbesucher' ? 'Grabbesucher' : 'Interessenten');
+        var label = count + ' ' + (TYPE_LABELS[visitorType] || visitorType);
         closeDialog();
         showToast('Gespeichert: ' + label);
         return loadBesucher().then(renderDays);
@@ -640,7 +672,7 @@
   }
 
   buildWheel();
-  setType('grabbesucher');
+  setType('hinterbliebene');
 
   wheelEl.addEventListener('scroll', function () {
     if (!wheelReady) return;

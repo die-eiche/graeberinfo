@@ -28,58 +28,66 @@ PALETTE = [
 ]
 WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 HOURS = list(range(8, 20))
-HEADER = "Interessenten;Grabbesucher;Zeitstempel"
+HEADER = "Kategorie;Anzahl;Zeitstempel"
+LABELS = {
+    "hinterbliebene": "Hinterbliebene",
+    "hausfuehrung": "Hausführung",
+    "grabverkauf": "Grabverkauf",
+}
 
 
-def generate_rows(end: date | None = None) -> list[tuple[int, int, str]]:
+def generate_rows(end: date | None = None) -> list[tuple[str, int, str]]:
     end = end or date(2026, 9, 12)
     start = date(2026, 6, 16)  # Dienstag; volle Wochen bis Mitte September
-    rng = random.Random(20260912)
-    rows: list[tuple[int, int, str]] = []
+    rng = random.Random(20260915)
+    rows: list[tuple[str, int, str]] = []
     day = start
     while day <= end:
         wd = day.weekday()
         weekend = wd >= 5
         for hour in HOURS:
-            # Tagesrand oft leer
             if hour in (8, 19) and rng.random() < 0.55:
                 continue
             if hour in (9, 18) and rng.random() < 0.28:
                 continue
-            grab = 0
-            interesse = 0
+            events: list[tuple[str, int]] = []
             if weekend:
                 if 10 <= hour <= 16:
-                    grab = rng.choices([0, 1, 2, 3, 4], [8, 18, 14, 6, 2])[0]
+                    hinter = rng.choices([0, 1, 2, 3, 4], [8, 18, 14, 6, 2])[0]
                 else:
-                    grab = rng.choices([0, 1, 2], [18, 10, 3])[0]
-                interesse = rng.choices([0, 1, 2], [22, 6, 1])[0]
+                    hinter = rng.choices([0, 1, 2], [18, 10, 3])[0]
+                if hinter:
+                    events.append(("hinterbliebene", hinter))
+                if rng.random() < 0.08:
+                    events.append(("hausfuehrung", rng.choice([6, 8, 10, 12])))
+                if rng.random() < 0.12:
+                    events.append(("grabverkauf", rng.choice([1, 2])))
             else:
                 if 10 <= hour <= 15:
-                    interesse = rng.choices([0, 1, 2, 3], [10, 16, 8, 2])[0]
-                    grab = rng.choices([0, 1, 2], [16, 10, 3])[0]
+                    verkauf = rng.choices([0, 1, 2, 3], [10, 16, 8, 2])[0]
+                    hinter = rng.choices([0, 1, 2], [16, 10, 3])[0]
                 else:
-                    interesse = rng.choices([0, 1], [18, 7])[0]
-                    grab = rng.choices([0, 1], [20, 5])[0]
-            if interesse == 0 and grab == 0:
-                continue
-            # Manchmal getrennte Ereignisse in derselben Stunde
-            if interesse and grab and rng.random() < 0.35:
-                rows.append((interesse, 0, f"{day.isoformat()} {hour:02d}:00"))
-                rows.append((0, grab, f"{day.isoformat()} {hour:02d}:00"))
-            else:
-                rows.append((interesse, grab, f"{day.isoformat()} {hour:02d}:00"))
+                    verkauf = rng.choices([0, 1], [18, 7])[0]
+                    hinter = rng.choices([0, 1], [20, 5])[0]
+                if hinter:
+                    events.append(("hinterbliebene", hinter))
+                if verkauf:
+                    events.append(("grabverkauf", verkauf))
+                if 10 <= hour <= 14 and rng.random() < 0.16:
+                    events.append(("hausfuehrung", rng.choice([4, 6, 8, 10, 12])))
+            for kat, n in events:
+                rows.append((kat, n, f"{day.isoformat()} {hour:02d}:00"))
         day += timedelta(days=1)
     return rows
 
 
-def csv_text(rows: list[tuple[int, int, str]]) -> str:
+def csv_text(rows: list[tuple[str, int, str]]) -> str:
     lines = [
         "# DEMO=1; Fantasiewerte zum Spielen, Leerung am 1.1.2027 00:00 Europe/Berlin",
         HEADER,
     ]
-    for interesse, grab, ts in rows:
-        lines.append(f"{interesse};{grab};{ts}")
+    for kat, n, ts in rows:
+        lines.append(f"{LABELS[kat]};{n};{ts}")
     return "\n".join(lines) + "\n"
 
 
@@ -91,15 +99,16 @@ def color_for(value: int, max_v: int) -> tuple[int, int, int]:
     return PALETTE[idx]
 
 
-def aggregate(rows: list[tuple[int, int, str]], field: str):
+def aggregate(rows: list[tuple[str, int, str]], field: str):
     grid = [[0] * len(HOURS) for _ in range(7)]
     days = [set() for _ in range(7)]
-    for interesse, grab, ts in rows:
+    for kat, n, ts in rows:
         dt = datetime.strptime(ts, "%Y-%m-%d %H:%M")
         wd = dt.weekday()
         hi = HOURS.index(dt.hour)
-        val = interesse + grab if field == "gesamt" else (interesse if field == "interessenten" else grab)
-        grid[wd][hi] += val
+        if kat != field:
+            continue
+        grid[wd][hi] += n
         days[wd].add(dt.date())
     n_days = [len(s) for s in days]
     return grid, n_days
@@ -127,8 +136,8 @@ def fill_rect(buf: list[bytearray], x: int, y: int, w: int, h: int, color: tuple
                 row[o : o + 3] = bytes((r, g, b))
 
 
-def draw_heatmaps_png(rows: list[tuple[int, int, str]], path: Path) -> None:
-    specs = [("Interessenten", "interessenten"), ("Grabbesucher", "grabbesucher"), ("Gesamtbesucher", "gesamt")]
+def draw_heatmaps_png(rows: list[tuple[str, int, str]], path: Path) -> None:
+    specs = [("Hinterbliebene", "hinterbliebene"), ("Hausführung", "hausfuehrung"), ("Grabverkauf", "grabverkauf")]
     cell = 18
     pad = 24
     label_w = 8
@@ -251,37 +260,37 @@ CSS = r"""
 """
 
 HTML_CARDS = r"""
-    <section class="card visitor-card" id="visitor-interessenten-card">
-      <h2>Interessenten</h2>
-      <p class="kpi-sub" id="visitor-interessenten-sub">Lade Besucherdaten …</p>
+    <section class="card visitor-card" id="visitor-hinterbliebene-card">
+      <h2>Hinterbliebene</h2>
+      <p class="kpi-sub" id="visitor-hinterbliebene-sub">Lade Besucherdaten …</p>
       <div class="visitor-legend" aria-hidden="true">
         <span>wenige</span>
         <div class="visitor-legend-scale">SCALE</div>
         <span>viele</span>
       </div>
-      <div id="visitor-interessenten-heatmap"></div>
+      <div id="visitor-hinterbliebene-heatmap"></div>
     </section>
 
-    <section class="card visitor-card" id="visitor-grab-card">
-      <h2>Grabbesucher</h2>
-      <p class="kpi-sub" id="visitor-grab-sub"></p>
+    <section class="card visitor-card" id="visitor-hausfuehrung-card">
+      <h2>Hausführung</h2>
+      <p class="kpi-sub" id="visitor-hausfuehrung-sub"></p>
       <div class="visitor-legend" aria-hidden="true">
         <span>wenige</span>
         <div class="visitor-legend-scale">SCALE</div>
         <span>viele</span>
       </div>
-      <div id="visitor-grab-heatmap"></div>
+      <div id="visitor-hausfuehrung-heatmap"></div>
     </section>
 
-    <section class="card visitor-card" id="visitor-gesamt-card">
-      <h2>Gesamtbesucher</h2>
-      <p class="kpi-sub" id="visitor-gesamt-sub"></p>
+    <section class="card visitor-card" id="visitor-grabverkauf-card">
+      <h2>Grabverkauf</h2>
+      <p class="kpi-sub" id="visitor-grabverkauf-sub"></p>
       <div class="visitor-legend" aria-hidden="true">
         <span>wenige</span>
         <div class="visitor-legend-scale">SCALE</div>
         <span>viele</span>
       </div>
-      <div id="visitor-gesamt-heatmap"></div>
+      <div id="visitor-grabverkauf-heatmap"></div>
     </section>
 """
 
@@ -296,8 +305,16 @@ def rgb_to_hex(c: tuple[int, int, int]) -> str:
 
 
 def inject(html: str, js: str, csv: str) -> str:
+    import re
+
     cards = HTML_CARDS.replace("SCALE", legend_html())
-    if "id=\"visitor-interessenten-card\"" not in html:
+    html, n_cards = re.subn(
+        r'(?:    <section class="card visitor-card" id="visitor-[^"]+-card">[\s\S]*?</section>\s*){3}',
+        lambda _m: cards + "\n",
+        html,
+        count=1,
+    )
+    if n_cards == 0 and 'id="visitor-hinterbliebene-card"' not in html:
         marker = '    <section class="card error-box" id="error-card" hidden></section>'
         if marker not in html:
             raise SystemExit("error-card Marker nicht gefunden")
@@ -325,7 +342,7 @@ def inject(html: str, js: str, csv: str) -> str:
         import re
         html = re.sub(
             r'  <script type="text/csv" id="besucher-data-csv">[\s\S]*?</script>\n',
-            embed,
+            lambda _m: embed,
             html,
             count=1,
         )
@@ -338,13 +355,14 @@ def inject(html: str, js: str, csv: str) -> str:
         import re
         html = re.sub(
             r"<script>\n/\* Besucherstatistik: drei Wochentag[\s\S]*?</script>\n",
-            script,
+            lambda _m: script,
             html,
             count=1,
         )
     else:
         html = html.replace("</body>", script + "</body>", 1)
-    html = html.replace("var STATS_BUILD = '2026-09-09a';", "var STATS_BUILD = '2026-09-12-besucher';")
+    html = html.replace("var STATS_BUILD = '2026-09-09a';", "var STATS_BUILD = '2026-09-15-kategorien';")
+    html = html.replace("var STATS_BUILD = '2026-09-12-besucher';", "var STATS_BUILD = '2026-09-15-kategorien';")
     return html
 
 
@@ -370,6 +388,10 @@ def main() -> None:
         dest.write_text(patched, encoding="utf-8")
         print("patched", dest, "bytes", dest.stat().st_size)
     print("rows", len(rows), "csv", args.out_csv, "png", args.out_png)
+    month_copy = args.out_csv.with_name("besucher-2026-09.csv")
+    if args.out_csv.name == "besucher.csv":
+        month_copy.write_text(csv, encoding="utf-8")
+        print("month", month_copy)
 
 
 if __name__ == "__main__":

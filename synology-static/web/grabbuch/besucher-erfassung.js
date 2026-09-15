@@ -8,7 +8,12 @@
   var pressStart = null;
   var suppressClick = false;
   var count = 1;
-  var visitorType = 'grabbesucher';
+  var visitorType = 'hinterbliebene';
+  var TYPE_LABELS = {
+    hinterbliebene: 'Hinterbliebene',
+    hausfuehrung: 'Hausführung',
+    grabverkauf: 'Grabverkauf'
+  };
   var selectedIso = '';
   var selectedLabel = '';
   var wheelReady = false;
@@ -65,9 +70,11 @@
       '.besucher-wheel-overlay{pointer-events:none;position:absolute;inset:0;background:linear-gradient(#fff 0%,rgba(255,255,255,0) 28%,rgba(255,255,255,0) 72%,#fff 100%)}' +
       '.besucher-wheel-window{pointer-events:none;position:absolute;left:8px;right:8px;top:56px;height:56px;border-radius:.6rem;border:1px solid #c5d4c8;background:rgba(47,93,58,.06)}' +
       '.besucher-types,.besucher-actions{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-bottom:.85rem}' +
+      '.besucher-types{grid-template-columns:1fr}' +
       '.besucher-card button{border:1px solid #d9e2ec;background:#fff;border-radius:.5rem;padding:.75rem .5rem;font-size:1rem;cursor:pointer}' +
-      '.besucher-types button.is-on[data-type="grabbesucher"]{background:#2f5d3a;color:#fff;border-color:#2f5d3a}' +
-      '.besucher-types button.is-on[data-type="interessenten"]{background:#1d4e89;color:#fff;border-color:#1d4e89}' +
+      '.besucher-types button.is-on[data-type="hinterbliebene"]{background:#2f5d3a;color:#fff;border-color:#2f5d3a}' +
+      '.besucher-types button.is-on[data-type="hausfuehrung"]{background:#1d4e89;color:#fff;border-color:#1d4e89}' +
+      '.besucher-types button.is-on[data-type="grabverkauf"]{background:#8a5a12;color:#fff;border-color:#8a5a12}' +
       '.besucher-save{background:#2f5d3a;color:#fff;border-color:#2f5d3a;font-weight:650}' +
       '.besucher-status{min-height:1.2rem;margin:0;font-size:.9rem;color:#b42318;text-align:center}' +
       '.besucher-toast{position:fixed;left:50%;bottom:1.4rem;transform:translateX(-50%);background:#1f2933;color:#fff;padding:.7rem 1rem;border-radius:999px;opacity:0;z-index:10001;transition:opacity .2s}' +
@@ -83,8 +90,9 @@
       '<div class="besucher-wheel-wrap"><div class="besucher-wheel" id="besucher-wheel"></div>' +
       '<div class="besucher-wheel-overlay"></div><div class="besucher-wheel-window"></div></div>' +
       '<div class="besucher-types">' +
-      '<button type="button" data-type="grabbesucher">Grabbesucher</button>' +
-      '<button type="button" data-type="interessenten">Interessenten</button></div>' +
+      '<button type="button" data-type="hinterbliebene">Hinterbliebene</button>' +
+      '<button type="button" data-type="hausfuehrung">Hausführung</button>' +
+      '<button type="button" data-type="grabverkauf">Grabverkauf</button></div>' +
       '<div class="besucher-actions">' +
       '<button type="button" id="besucher-cancel">Abbrechen</button>' +
       '<button type="button" class="besucher-save" id="besucher-save">Speichern</button></div>' +
@@ -137,7 +145,7 @@
   }
 
   function setType(t) {
-    visitorType = t === 'interessenten' ? 'interessenten' : 'grabbesucher';
+    visitorType = TYPE_LABELS[t] ? t : 'hinterbliebene';
     document.querySelectorAll('.besucher-types button').forEach(function (btn) {
       btn.classList.toggle('is-on', btn.getAttribute('data-type') === visitorType);
     });
@@ -150,7 +158,7 @@
     document.getElementById('besucher-date').textContent = label;
     document.getElementById('besucher-status').textContent = '';
     document.getElementById('besucher-save').disabled = false;
-    setType('grabbesucher');
+    setType('hinterbliebene');
     document.getElementById('besucher-dialog').classList.add('open');
     setCount(1, true);
   }
@@ -175,8 +183,8 @@
     if (!selectedIso || saveBtn.disabled) return;
     var body = {
       action: 'append',
-      interessenten: visitorType === 'interessenten' ? count : 0,
-      grabbesucher: visitorType === 'grabbesucher' ? count : 0,
+      kategorie: visitorType,
+      anzahl: count,
       zeitstempel: timestampFor(selectedIso)
     };
     saveBtn.disabled = true;
@@ -188,7 +196,7 @@
     }).then(function (r) { return r.json().then(function (j) { return { json: j }; }); })
       .then(function (res) {
         if (!res.json || !res.json.ok) throw new Error((res.json && res.json.error) || 'Speichern fehlgeschlagen');
-        var label = count + ' ' + (visitorType === 'grabbesucher' ? 'Grabbesucher' : 'Interessenten');
+        var label = count + ' ' + (TYPE_LABELS[visitorType] || visitorType);
         closeDialog();
         showToast('Gespeichert: ' + label);
       })
