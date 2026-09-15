@@ -121,30 +121,45 @@ function zaehlung_append_line(string $teil, string $ip, string $ts): array
     return $written;
 }
 
-function zaehlung_read_count(string $path): int
+function zaehlung_read_rows(string $path): array
 {
     if (!is_file($path)) {
-        return 0;
+        return [];
     }
     $raw = file_get_contents($path);
     if ($raw === false || $raw === '') {
-        return 0;
+        return [];
     }
+    $raw = preg_replace('/^\xEF\xBB\xBF/', '', $raw);
     $lines = preg_split("/\r\n|\n|\r/", $raw);
-    $n = 0;
+    $rows = [];
     foreach ($lines as $line) {
         $trim = trim($line);
         if ($trim === '' || strpos($trim, '#') === 0) {
             continue;
         }
-        $first = strtolower(explode(';', $line)[0] ?? '');
+        $parts = explode(';', $line);
+        $first = strtolower(trim((string) ($parts[0] ?? '')));
         $first = preg_replace('/^\xef\xbb\xbf/', '', $first);
-        if ($first === 'timestamp') {
+        if ($first === 'timestamp' || $first === '') {
             continue;
         }
-        $n++;
+        $teil = trim((string) ($parts[1] ?? ''));
+        if (!in_array($teil, ZAEHLUNG_TEILE, true)) {
+            continue;
+        }
+        $rows[] = [
+            'timestamp' => trim((string) $parts[0]),
+            'programmteil' => $teil,
+            'ip' => trim((string) ($parts[2] ?? '')),
+        ];
     }
-    return $n;
+    return $rows;
+}
+
+function zaehlung_read_count(string $path): int
+{
+    return count(zaehlung_read_rows($path));
 }
 
 try {
@@ -156,11 +171,13 @@ try {
 
     if ($action === 'load') {
         $primary = zaehlung_csv_path(zaehlung_dirs()[0]);
+        $rows = zaehlung_read_rows($primary);
         echo json_encode([
             'ok' => true,
             'action' => 'load',
-            'count' => zaehlung_read_count($primary),
+            'count' => count($rows),
             'teile' => ZAEHLUNG_TEILE,
+            'rows' => $rows,
         ], JSON_UNESCAPED_UNICODE);
         exit;
     }

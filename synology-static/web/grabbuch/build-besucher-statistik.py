@@ -257,6 +257,50 @@ CSS = r"""
       .visitor-day { font-size: 0.6rem; }
       .visitor-col { min-width: 1.85rem; }
     }
+    .aufrufe-card { min-width: min(100%, 22rem); }
+    .aufrufe-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .aufrufe-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 16px;
+    }
+    .aufrufe-row .kpi-label {
+      margin: 0;
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+    .aufrufe-row .kpi-value {
+      font-size: 1.55rem;
+      min-width: 2.2rem;
+      text-align: right;
+    }
+"""
+
+HTML_AUFRUFE = r"""
+    <section class="card aufrufe-card" id="aufrufe-card">
+      <h2>Aufrufe Dienste</h2>
+      <p class="kpi-sub" id="aufrufe-sub">Letzte Woche ab Anzeigedatum …</p>
+      <div class="aufrufe-rows">
+        <div class="aufrufe-row">
+          <p class="kpi-label">Gesamtprogramm</p>
+          <div class="kpi-value" id="aufrufe-gesamt">—</div>
+        </div>
+        <div class="aufrufe-row">
+          <p class="kpi-label">Unterprogramm Geburts- und Sterbetage</p>
+          <div class="kpi-value" id="aufrufe-gedenken">—</div>
+        </div>
+        <div class="aufrufe-row">
+          <p class="kpi-label">Unterprogramm Eintrag Besuchergruppe</p>
+          <div class="kpi-value" id="aufrufe-besucher">—</div>
+        </div>
+      </div>
+    </section>
 """
 
 HTML_CARDS = r"""
@@ -361,8 +405,18 @@ def inject(html: str, js: str, csv: str) -> str:
         )
     else:
         html = html.replace("</body>", script + "</body>", 1)
-    html = html.replace("var STATS_BUILD = '2026-09-09a';", "var STATS_BUILD = '2026-09-15-kategorien';")
-    html = html.replace("var STATS_BUILD = '2026-09-12-besucher';", "var STATS_BUILD = '2026-09-15-kategorien';")
+    html = html.replace("var STATS_BUILD = '2026-09-09a';", "var STATS_BUILD = '2026-09-15-aufrufe';")
+    html = html.replace("var STATS_BUILD = '2026-09-12-besucher';", "var STATS_BUILD = '2026-09-15-aufrufe';")
+    html = html.replace("var STATS_BUILD = '2026-09-15-kategorien';", "var STATS_BUILD = '2026-09-15-aufrufe';")
+    if 'id="aufrufe-card"' not in html:
+        monthly = '    <section class="card" id="monthly-card" hidden>'
+        if monthly in html:
+            html = html.replace(monthly, HTML_AUFRUFE + "\n" + monthly, 1)
+        else:
+            marker = '    <section class="card error-box" id="error-card" hidden></section>'
+            html = html.replace(marker, HTML_AUFRUFE + "\n" + marker, 1)
+    if "aufrufe-statistik.js" not in html:
+        html = html.replace("</body>", '  <script src="aufrufe-statistik.js"></script>\n</body>', 1)
     return html
 
 
