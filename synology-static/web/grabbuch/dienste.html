@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Dienste">
+  <meta name="theme-color" content="#2f5d3a">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Dienste – Besucher erfassen</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f6f8;
+      --card: #ffffff;
+      --text: #1f2933;
+      --muted: #7b8794;
+      --accent: #2f5d3a;
+      --accent-2: #3d7a4c;
+      --border: #d9e2ec;
+      --grab: #2f5d3a;
+      --fuehrung: #1d4e89;
+      --verkauf: #8a5a12;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 1rem 1rem 2.5rem;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      margin-bottom: 0.85rem;
+    }
+    .logo {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      object-fit: cover;
+      border: 1px solid var(--border);
+      background: #fff;
+    }
+    .header-text h1 {
+      margin: 0;
+      font-size: 1.35rem;
+      color: var(--accent);
+    }
+    .header-text p {
+      margin: 0.2rem 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .hint {
+      background: #eef6ef;
+      border: 1px solid #cde3d1;
+      color: #345c3c;
+      border-radius: 0.75rem;
+      padding: 0.7rem 0.85rem;
+      font-size: 0.92rem;
+      margin-bottom: 1rem;
+    }
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    button {
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 0.5rem;
+      padding: 0.65rem 1rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    .day-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-user-drag: none;
+    }
+    .day-card.is-today { border-color: #8fbf96; box-shadow: 0 0 0 2px rgba(47, 93, 58, 0.12); }
+    .day-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 0.45rem;
+    }
+    .staff { line-height: 1.55; }
+    .note { color: var(--muted); font-style: italic; }
+    .counts {
+      margin-top: 0.55rem;
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+    .group-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.45rem;
+      margin-top: 0.7rem;
+    }
+    .group-actions button {
+      font-weight: 650;
+      padding: 0.85rem 0.5rem;
+    }
+    .group-actions button[data-type="hinterbliebene"] {
+      background: #eef6ef;
+      border-color: #cde3d1;
+      color: var(--grab);
+    }
+    .group-actions button[data-type="hausfuehrung"] {
+      background: #eef3f8;
+      border-color: #c5d4e4;
+      color: var(--fuehrung);
+    }
+    .group-actions button[data-type="grabverkauf"] {
+      background: #f7f1e6;
+      border-color: #e4d4b8;
+      color: var(--verkauf);
+    }
+    .error {
+      background: #fff5f5;
+      border: 1px solid #f5c2c7;
+      border-radius: 0.75rem;
+      padding: 1rem;
+    }
+    .dialog {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      background: rgba(20, 28, 24, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .dialog.open { display: flex; }
+    .dialog-card {
+      width: min(420px, 100%);
+      background: #fff;
+      border-radius: 1rem;
+      padding: 1.15rem 1.15rem 1rem;
+      box-shadow: 0 18px 50px rgba(16, 24, 40, 0.28);
+    }
+    .dialog-card h2 {
+      margin: 0;
+      font-size: 1.2rem;
+      color: var(--accent);
+    }
+    .dialog-date {
+      margin: 0.25rem 0 0.9rem;
+      color: var(--muted);
+    }
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 1.4rem;
+      transform: translateX(-50%);
+      background: #1f2933;
+      color: #fff;
+      padding: 0.7rem 1rem;
+      border-radius: 999px;
+      font-size: 0.92rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 10001;
+    }
+    .toast.show { opacity: 1; }
+    .gedenken-list {
+      max-height: 50vh;
+      overflow: auto;
+      margin: 0 0 1rem;
+    }
+    .gedenken-list .day-card { margin-bottom: 0.5rem; padding: 0.75rem; }
+    @media (min-width: 560px) {
+      .group-actions { grid-template-columns: 1fr 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <img class="logo" src="grabbuch-icon.png" alt="">
+      <div class="header-text">
+        <h1>Dienste</h1>
+        <p>Nächste 10 Tage · Gruppen erfassen</p>
+      </div>
+    </header>
+    <p class="hint">Tippe die Gruppe, die du eintragen möchtest. Jeder Tipp speichert genau eine Gruppe – ohne Anzahl- oder Extra-Abfrage.</p>
+    <div class="toolbar">
+      <button id="gedenken" type="button">Geburts- und Sterbetage</button>
+      <button id="refresh" type="button">Aktualisieren</button>
+    </div>
+    <div id="content"></div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="dialog" id="gedenken-dialog" role="dialog" aria-modal="true" aria-labelledby="gedenken-title">
+    <div class="dialog-card">
+      <h2 id="gedenken-title">Geburts- und Sterbetage</h2>
+      <p class="dialog-date">Nächste 10 Tage</p>
+      <div class="gedenken-list" id="gedenken-list"></div>
+      <button type="button" id="gedenken-close">Schließen</button>
+    </div>
+  </div>
+
+  <script>
+(function () {
+  var WEEKDAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+  var GROUPS = [
+    { type: 'hinterbliebene', label: 'Hinterbliebene' },
+    { type: 'hausfuehrung', label: 'Hausführung' },
+    { type: 'grabverkauf', label: 'Grabverkauf' }
+  ];
+  var TYPE_LABELS = {
+    hinterbliebene: 'Hinterbliebene',
+    hausfuehrung: 'Hausführung',
+    grabverkauf: 'Grabverkauf'
+  };
+  var TEIL = {
+    gesamt: 'Gesamtprogramm',
+    gedenken: 'Unterprogramm Geburts- und Sterbetage',
+    besucher: 'Unterprogramm Eintrag Besuchergruppe'
+  };
+  var content = document.getElementById('content');
+  var refreshButton = document.getElementById('refresh');
+  var toastEl = document.getElementById('toast');
+  var gedenkenDialog = document.getElementById('gedenken-dialog');
+  var gedenkenList = document.getElementById('gedenken-list');
+  var gedenkenBtn = document.getElementById('gedenken');
+  var gedenkenClose = document.getElementById('gedenken-close');
+
+  var days = [];
+  var statsByIso = {};
+  var toastTimer = null;
+  var saving = false;
+
+  function logAufruf(teil) {
+    fetch(resourceUrl('zaehlung.php'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ programmteil: teil })
+    }).catch(function () {});
+  }
+
+  function berlinNowParts() {
+    var s = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Berlin' });
+    var m = s.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/);
+    return {
+      iso: m[1] + '-' + m[2] + '-' + m[3],
+      y: +m[1], mo: +m[2], d: +m[3], h: +m[4], min: +m[5],
+      text: s
+    };
+  }
+
+  function germanDate(iso) {
+    var p = iso.split('-');
+    return p[2] + '.' + p[1] + '.' + p[0];
+  }
+
+  function isoFromGerman(dateText) {
+    var m = String(dateText || '').trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (!m) return '';
+    return m[3] + '-' + pad2(m[2]) + '-' + pad2(m[1]);
+  }
+
+  function pad2(n) {
+    return String(n).padStart(2, '0');
+  }
+
+  function addDaysIso(iso, add) {
+    var p = iso.split('-').map(Number);
+    var dt = new Date(Date.UTC(p[0], p[1] - 1, p[2] + add));
+    return dt.getUTCFullYear() + '-' + pad2(dt.getUTCMonth() + 1) + '-' + pad2(dt.getUTCDate());
+  }
+
+  function weekdayName(iso) {
+    var p = iso.split('-').map(Number);
+    return WEEKDAYS[new Date(p[0], p[1] - 1, p[2]).getDay()];
+  }
+
+  function fallbackDays() {
+    var today = berlinNowParts().iso;
+    var out = [];
+    for (var i = 0; i < 10; i++) {
+      var iso = addDaysIso(today, i);
+      out.push({
+        iso: iso,
+        weekday: weekdayName(iso),
+        date: germanDate(iso),
+        staff: [],
+        note: 'Kein Dienst geladen.'
+      });
+    }
+    return out;
+  }
+
+  function normalizeDays(data) {
+    var list = (data && data.days) || [];
+    if (!list.length) return fallbackDays();
+    return list.map(function (day) {
+      var iso = isoFromGerman(day.date) || day.iso || '';
+      return {
+        iso: iso,
+        weekday: day.weekday || (iso ? weekdayName(iso) : ''),
+        date: day.date || (iso ? germanDate(iso) : ''),
+        staff: Array.isArray(day.staff) ? day.staff : [],
+        note: day.note || ''
+      };
+    });
+  }
+
+  function apiCandidates() {
+    var here = window.location.href;
+    return [
+      new URL('../Ehrenamt/api/dienste.php', here).toString(),
+      new URL('/ehrenamt/api/dienste.php', here).toString(),
+      new URL('../api/dienste.php', here).toString()
+    ];
+  }
+
+  function resourceUrl(rel) {
+    try { return new URL(rel, window.location.href).toString(); }
+    catch (e) { return rel; }
+  }
+
+  function parseTs(raw) {
+    var s = String(raw || '').trim().replace('T', ' ');
+    var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return m[1] + '-' + m[2] + '-' + m[3];
+    m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+    if (m) return m[3] + '-' + pad2(m[2]) + '-' + pad2(m[1]);
+    return '';
+  }
+
+  function emptyStats() {
+    return { hinterbliebene: 0, hausfuehrung: 0, grabverkauf: 0 };
+  }
+
+  function countsFromRow(row) {
+    var out = emptyStats();
+    var kat = String(row.kategorie || '').toLowerCase()
+      .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue');
+    if (kat === 'grabbesucher') kat = 'hinterbliebene';
+    if (kat === 'interessenten') kat = 'grabverkauf';
+    var n = Math.max(0, +row.anzahl || 0);
+    if (out.hasOwnProperty(kat) && n) {
+      out[kat] = n;
+      return out;
+    }
+    out.hinterbliebene = Math.max(0, +(row.hinterbliebene != null ? row.hinterbliebene : row.grabbesucher) || 0);
+    out.hausfuehrung = Math.max(0, +row.hausfuehrung || 0);
+    out.grabverkauf = Math.max(0, +(row.grabverkauf != null ? row.grabverkauf : row.interessenten) || 0);
+    return out;
+  }
+
+  function loadStats(rows) {
+    statsByIso = {};
+    (rows || []).forEach(function (row) {
+      var iso = parseTs(row.zeitstempel);
+      if (!iso) return;
+      if (!statsByIso[iso]) statsByIso[iso] = emptyStats();
+      var c = countsFromRow(row);
+      statsByIso[iso].hinterbliebene += c.hinterbliebene;
+      statsByIso[iso].hausfuehrung += c.hausfuehrung;
+      statsByIso[iso].grabverkauf += c.grabverkauf;
+    });
+  }
+
+  function countsText(iso) {
+    var s = statsByIso[iso] || emptyStats();
+    if (!s.hinterbliebene && !s.hausfuehrung && !s.grabverkauf) {
+      return 'Noch keine Gruppen für diesen Tag gespeichert.';
+    }
+    return 'Gruppen: ' + s.hinterbliebene + ' Hinterbliebene, ' +
+      s.hausfuehrung + ' Hausführung, ' + s.grabverkauf + ' Grabverkauf';
+  }
+
+  function groupButtonsHtml() {
+    return '<div class="group-actions">' + GROUPS.map(function (g) {
+      return '<button type="button" class="group-save" data-type="' + g.type + '">' +
+        escapeHtml(g.label) + '</button>';
+    }).join('') + '</div>';
+  }
+
+  function renderDays() {
+    var today = berlinNowParts().iso;
+    content.innerHTML = days.map(function (day) {
+      var staff = day.staff && day.staff.length
+        ? escapeHtml(day.staff.join(', '))
+        : '<span class="note">' + escapeHtml(day.note || 'Kein Dienst eingetragen.') + '</span>';
+      var cls = 'day-card' + (day.iso === today ? ' is-today' : '');
+      return '<section class="' + cls + '" data-iso="' + escapeAttr(day.iso) + '" data-label="' +
+        escapeAttr(day.weekday + ', ' + day.date) + '">' +
+        '<div class="day-title">' + escapeHtml(day.weekday) + ', ' + escapeHtml(day.date) + '</div>' +
+        '<div class="staff">' + staff + '</div>' +
+        '<div class="counts">' + escapeHtml(countsText(day.iso)) + '</div>' +
+        groupButtonsHtml() +
+        '</section>';
+    }).join('');
+    bindCards();
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function escapeAttr(s) { return escapeHtml(s); }
+
+  function fetchFirst(urls) {
+    var i = 0;
+    function next() {
+      if (i >= urls.length) return Promise.reject(new Error('Keine Dienst-API erreichbar'));
+      var url = urls[i++] + (urls[i - 1].indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+      return fetch(url, { cache: 'no-store' }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }).catch(function () { return next(); });
+    }
+    return next();
+  }
+
+  function loadBesucher() {
+    return fetch(resourceUrl('besucher.php?action=load&t=' + Date.now()), { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data && data.ok) loadStats(data.rows || []);
+      })
+      .catch(function () {});
+  }
+
+  function loadData() {
+    content.innerHTML = '<p>Lade Dienste…</p>';
+    refreshButton.disabled = true;
+    var duty = fetchFirst(apiCandidates()).then(normalizeDays).catch(function () {
+      return fallbackDays();
+    });
+    return Promise.all([duty, loadBesucher()]).then(function (parts) {
+      days = parts[0];
+      renderDays();
+    }).catch(function (err) {
+      content.innerHTML = '<div class="error"><strong>Fehler:</strong> ' + escapeHtml(err.message) + '</div>';
+    }).then(function () {
+      refreshButton.disabled = false;
+    });
+  }
+
+  function bindCards() {
+    content.querySelectorAll('.day-card').forEach(function (card) {
+      if (card.getAttribute('data-besucher-bound') === '1') return;
+      card.setAttribute('data-besucher-bound', '1');
+      card.querySelectorAll('.group-save').forEach(function (btn) {
+        btn.addEventListener('click', function (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          saveGroup(card, btn.getAttribute('data-type'));
+        });
+      });
+    });
+  }
+
+  function setCardBusy(card, busy) {
+    card.querySelectorAll('.group-save').forEach(function (btn) {
+      btn.disabled = busy;
+    });
+  }
+
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2600);
+  }
+
+  function timestampFor(iso) {
+    var now = berlinNowParts();
+    var h = now.iso === iso ? now.h : 12;
+    if (h < 8) h = 8;
+    if (h > 19) h = 19;
+    return iso + ' ' + pad2(h) + ':00';
+  }
+
+  function saveGroup(card, type) {
+    var iso = card.getAttribute('data-iso');
+    if (!iso || saving || !TYPE_LABELS[type]) return;
+    saving = true;
+    setCardBusy(card, true);
+    logAufruf(TEIL.besucher);
+    var body = {
+      action: 'append',
+      kategorie: type,
+      anzahl: 1,
+      zeitstempel: timestampFor(iso)
+    };
+    fetch(resourceUrl('besucher.php'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); })
+      .then(function (res) {
+        if (!res.json || !res.json.ok) {
+          throw new Error((res.json && res.json.error) || 'Speichern fehlgeschlagen');
+        }
+        showToast('Gespeichert: ' + TYPE_LABELS[type]);
+        return loadBesucher().then(renderDays);
+      })
+      .catch(function (err) {
+        showToast(err.message || String(err));
+        setCardBusy(card, false);
+      })
+      .then(function () {
+        saving = false;
+      });
+  }
+
+  function openGedenken() {
+    var list = days.length ? days : fallbackDays();
+    gedenkenList.innerHTML = list.map(function (day) {
+      return '<section class="day-card"><div class="day-title">' +
+        escapeHtml(day.weekday) + ', ' + escapeHtml(day.date) + '</div>' +
+        '<div class="note">Keine hinterlegten Geburts- oder Sterbetage für diesen Tag.</div></section>';
+    }).join('');
+    gedenkenDialog.classList.add('open');
+    logAufruf(TEIL.gedenken);
+  }
+
+  function closeGedenken() {
+    gedenkenDialog.classList.remove('open');
+  }
+
+  gedenkenBtn.addEventListener('click', openGedenken);
+  gedenkenClose.addEventListener('click', closeGedenken);
+  gedenkenDialog.addEventListener('click', function (ev) {
+    if (ev.target === gedenkenDialog) closeGedenken();
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && gedenkenDialog.classList.contains('open')) closeGedenken();
+  });
+  refreshButton.addEventListener('click', loadData);
+  loadData();
+  logAufruf(TEIL.gesamt);
+
+  if (/\bselftest=1\b/.test(window.location.search || '')) {
+    window.__diensteSelftest = function () {
+      return new Promise(function (resolve, reject) {
+        var tries = 0;
+        var posted = [];
+        var origFetch = window.fetch;
+        window.fetch = function (url, opts) {
+          var href = String(url || '');
+          var method = ((opts && opts.method) || 'GET').toUpperCase();
+          if (method === 'POST' && /besucher\.php/i.test(href)) {
+            var payload = {};
+            try { payload = JSON.parse((opts && opts.body) || '{}'); } catch (e1) {}
+            posted.push(payload);
+            return Promise.resolve(new Response(JSON.stringify({ ok: true, row: payload }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            }));
+          }
+          if (/besucher\.php/i.test(href) && method === 'GET') {
+            return Promise.resolve(new Response(JSON.stringify({ ok: true, rows: [] }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            }));
+          }
+          return origFetch.apply(this, arguments);
+        };
+        function waitCards() {
+          var card = content.querySelector('.day-card');
+          if (card) return run(card);
+          if (++tries > 40) return reject(new Error('keine Karten'));
+          setTimeout(waitCards, 50);
+        }
+        function run(card) {
+          var buttons = card.querySelectorAll('.group-save');
+          if (buttons.length !== 3) return reject(new Error('keine drei Gruppenknöpfe'));
+          var types = Array.prototype.map.call(buttons, function (b) { return b.getAttribute('data-type'); });
+          if (types.join(',') !== 'hinterbliebene,hausfuehrung,grabverkauf') {
+            return reject(new Error('falsche Gruppen: ' + types.join(',')));
+          }
+          if (document.getElementById('dialog') || document.getElementById('wheel')) {
+            return reject(new Error('Anzahl-Dialog noch vorhanden'));
+          }
+          buttons[0].click();
+          setTimeout(function () {
+            window.fetch = origFetch;
+            if (!posted.length) return reject(new Error('kein Speichern'));
+            var body = posted[0];
+            if (body.kategorie !== 'hinterbliebene') return reject(new Error('falsche Kategorie'));
+            if (+body.anzahl !== 1) return reject(new Error('Anzahl ist nicht 1'));
+            if (document.querySelector('.dialog.open') && !gedenkenDialog.classList.contains('open')) {
+              return reject(new Error('unerwarteter Dialog'));
+            }
+            resolve('ok');
+          }, 80);
+        }
+        waitCards();
+      }).then(function (msg) {
+        document.title = 'SELFTEST:OK ' + msg;
+        document.documentElement.setAttribute('data-selftest', 'ok');
+        return msg;
+      }).catch(function (err) {
+        document.title = 'SELFTEST:FAIL ' + err.message;
+        document.documentElement.setAttribute('data-selftest', 'fail');
+        throw err;
+      });
+    };
+    if (document.readyState === 'complete') window.__diensteSelftest();
+    else window.addEventListener('load', function () { window.__diensteSelftest(); });
+  }
+})();
+  </script>
+</body>
+</html>
