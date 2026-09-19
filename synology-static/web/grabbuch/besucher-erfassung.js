@@ -1,11 +1,9 @@
 (function () {
-  var LONG_PRESS_MS = 560;
-  var MOVE_CANCEL_PX = 12;
+  var LONG_PRESS_MS = 450;
+  var MOVE_CANCEL_PX = 28;
   var MIN = 1;
   var MAX = 30;
   var ITEM_H = 56;
-  var pressTimer = null;
-  var pressStart = null;
   var suppressClick = false;
   var count = 1;
   var visitorType = 'hinterbliebene';
@@ -99,7 +97,7 @@
       '.besucher-status{min-height:1.2rem;margin:0;font-size:.9rem;color:#b42318;text-align:center}' +
       '.besucher-toast{position:fixed;left:50%;bottom:1.4rem;transform:translateX(-50%);background:#1f2933;color:#fff;padding:.7rem 1rem;border-radius:999px;opacity:0;z-index:10001;transition:opacity .2s}' +
       '.besucher-toast.show{opacity:1}' +
-      '.day-card{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}' +
+      '.day-card{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:pan-y}' +
       '.day-card.is-pressing{background:#eef6ef}';
     document.head.appendChild(style);
 
@@ -228,43 +226,85 @@
       });
   }
 
-  function clearPress() {
-    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-    pressStart = null;
-    document.querySelectorAll('.day-card.is-pressing').forEach(function (el) {
+  function bindLongPress(el, onLongPress) {
+    var timer = null;
+    var startX = 0;
+    var startY = 0;
+    var active = false;
+
+    function start(x, y) {
+      stopTimer();
+      active = true;
+      startX = x;
+      startY = y;
+      el.classList.add('is-pressing');
+      timer = setTimeout(function () {
+        timer = null;
+        active = false;
+        el.classList.remove('is-pressing');
+        suppressClick = true;
+        try { if (navigator.vibrate) navigator.vibrate(15); } catch (e1) {}
+        onLongPress();
+      }, LONG_PRESS_MS);
+    }
+
+    function moved(x, y) {
+      if (!active) return;
+      var dx = x - startX;
+      var dy = y - startY;
+      if ((dx * dx + dy * dy) > MOVE_CANCEL_PX * MOVE_CANCEL_PX) stopTimer();
+    }
+
+    function stopTimer() {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      active = false;
       el.classList.remove('is-pressing');
+    }
+
+    el.addEventListener('touchstart', function (ev) {
+      if (ev.touches.length !== 1) {
+        stopTimer();
+        return;
+      }
+      var t = ev.touches[0];
+      start(t.clientX, t.clientY);
+    }, { passive: true });
+    el.addEventListener('touchmove', function (ev) {
+      if (!ev.touches.length) return;
+      var t = ev.touches[0];
+      moved(t.clientX, t.clientY);
+    }, { passive: true });
+    el.addEventListener('touchend', stopTimer);
+    el.addEventListener('touchcancel', stopTimer);
+
+    el.addEventListener('pointerdown', function (ev) {
+      if (ev.pointerType === 'touch' || ev.pointerType === 'pen') return;
+      if (ev.button && ev.button !== 0) return;
+      start(ev.clientX, ev.clientY);
+    });
+    el.addEventListener('pointermove', function (ev) {
+      if (ev.pointerType === 'touch' || ev.pointerType === 'pen') return;
+      moved(ev.clientX, ev.clientY);
+    });
+    el.addEventListener('pointerup', function (ev) {
+      if (ev.pointerType === 'touch' || ev.pointerType === 'pen') return;
+      stopTimer();
+    });
+    el.addEventListener('contextmenu', function (ev) {
+      ev.preventDefault();
+      stopTimer();
+      suppressClick = true;
+      onLongPress();
     });
   }
 
   function bindCard(card) {
     if (card.getAttribute('data-besucher-bound') === '1') return;
     card.setAttribute('data-besucher-bound', '1');
-    card.addEventListener('pointerdown', function (ev) {
-      if (ev.button && ev.button !== 0) return;
-      clearPress();
-      pressStart = { x: ev.clientX, y: ev.clientY };
-      card.classList.add('is-pressing');
-      try { card.setPointerCapture(ev.pointerId); } catch (e1) {}
-      pressTimer = setTimeout(function () {
-        pressTimer = null;
-        suppressClick = true;
-        var iso = card.getAttribute('data-iso') || isoFromGerman(card.getAttribute('data-date') || '');
-        var label = card.getAttribute('data-label') || (card.querySelector('.day-title') || {}).textContent || iso;
-        if (iso) openDialog(iso, label);
-        clearPress();
-      }, LONG_PRESS_MS);
-    });
-    card.addEventListener('pointermove', function (ev) {
-      if (!pressStart) return;
-      var dx = ev.clientX - pressStart.x;
-      var dy = ev.clientY - pressStart.y;
-      if ((dx * dx + dy * dy) > MOVE_CANCEL_PX * MOVE_CANCEL_PX) clearPress();
-    });
-    card.addEventListener('pointerup', clearPress);
-    card.addEventListener('pointercancel', clearPress);
-    card.addEventListener('contextmenu', function (ev) {
-      ev.preventDefault();
-      clearPress();
+    bindLongPress(card, function () {
       var iso = card.getAttribute('data-iso') || isoFromGerman(card.getAttribute('data-date') || '');
       var label = card.getAttribute('data-label') || (card.querySelector('.day-title') || {}).textContent || iso;
       if (iso) openDialog(iso, label);

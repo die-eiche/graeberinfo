@@ -94,7 +94,8 @@
       user-select: none;
       -webkit-user-select: none;
       -webkit-touch-callout: none;
-      touch-action: manipulation;
+      -webkit-user-drag: none;
+      touch-action: pan-y;
     }
     .day-card.is-today { border-color: #8fbf96; box-shadow: 0 0 0 2px rgba(47, 93, 58, 0.12); }
     .day-card.is-pressing { background: #eef6ef; }
@@ -109,6 +110,14 @@
       margin-top: 0.55rem;
       font-size: 0.88rem;
       color: var(--muted);
+    }
+    .day-capture {
+      margin-top: 0.7rem;
+      width: 100%;
+      background: #eef6ef;
+      border-color: #cde3d1;
+      color: var(--accent);
+      font-weight: 650;
     }
     .error {
       background: #fff5f5;
@@ -268,10 +277,10 @@
       <img class="logo" src="grabbuch-icon.png" alt="">
       <div class="header-text">
         <h1>Dienste</h1>
-        <p>Nächste 10 Tage · Besucher per langem Druck</p>
+        <p>Nächste 10 Tage · Besucher erfassen</p>
       </div>
     </header>
-    <p class="hint">Lange auf einen Tag drücken. Im Fenster mit dem Scrollrad die Anzahl (1–30) wählen, genau eine Gruppe (Hinterbliebene, Hausführung oder Grabverkauf), danach Speichern oder Abbrechen.</p>
+    <p class="hint">Einen Tag etwa eine halbe Sekunde gedrückt halten – oder „Besucher eintragen“ tippen. Im Fenster Anzahl (1–30) und genau eine Gruppe wählen, danach Speichern.</p>
     <div class="toolbar">
       <button id="gedenken" type="button">Geburts- und Sterbetage</button>
       <button id="refresh" type="button">Aktualisieren</button>
@@ -314,8 +323,8 @@
 
   <script>
 (function () {
-  var LONG_PRESS_MS = 560;
-  var MOVE_CANCEL_PX = 12;
+  var LONG_PRESS_MS = 450;
+  var MOVE_CANCEL_PX = 28;
   var MIN = 1;
   var MAX = 30;
   var ITEM_H = 56;
@@ -343,8 +352,6 @@
     grabverkauf: 'Grabverkauf'
   };
   var wheelReady = false;
-  var pressTimer = null;
-  var pressStart = null;
   var suppressClick = false;
   var toastTimer = null;
   var TEIL = {
@@ -510,6 +517,7 @@
         '<div class="day-title">' + escapeHtml(day.weekday) + ', ' + escapeHtml(day.date) + '</div>' +
         '<div class="staff">' + staff + '</div>' +
         '<div class="counts">' + escapeHtml(countsText(day.iso)) + '</div>' +
+        '<button type="button" class="day-capture">Besucher eintragen</button>' +
         '</section>';
     }).join('');
     bindCards();
@@ -559,46 +567,98 @@
     });
   }
 
-  function clearPress() {
-    if (pressTimer) {
-      clearTimeout(pressTimer);
-      pressTimer = null;
+  function bindLongPress(el, onLongPress) {
+    var timer = null;
+    var startX = 0;
+    var startY = 0;
+    var active = false;
+
+    function start(x, y) {
+      stopTimer();
+      active = true;
+      startX = x;
+      startY = y;
+      el.classList.add('is-pressing');
+      timer = setTimeout(function () {
+        timer = null;
+        active = false;
+        el.classList.remove('is-pressing');
+        suppressClick = true;
+        try { if (navigator.vibrate) navigator.vibrate(15); } catch (e1) {}
+        onLongPress();
+      }, LONG_PRESS_MS);
     }
-    pressStart = null;
-    document.querySelectorAll('.day-card.is-pressing').forEach(function (el) {
+
+    function moved(x, y) {
+      if (!active) return;
+      var dx = x - startX;
+      var dy = y - startY;
+      if ((dx * dx + dy * dy) > MOVE_CANCEL_PX * MOVE_CANCEL_PX) stopTimer();
+    }
+
+    function stopTimer() {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      active = false;
       el.classList.remove('is-pressing');
+    }
+
+    el.addEventListener('touchstart', function (ev) {
+      if (ev.touches.length !== 1) {
+        stopTimer();
+        return;
+      }
+      var t = ev.touches[0];
+      start(t.clientX, t.clientY);
+    }, { passive: true });
+    el.addEventListener('touchmove', function (ev) {
+      if (!ev.touches.length) return;
+      var t = ev.touches[0];
+      moved(t.clientX, t.clientY);
+    }, { passive: true });
+    el.addEventListener('touchend', stopTimer);
+    el.addEventListener('touchcancel', stopTimer);
+
+    el.addEventListener('pointerdown', function (ev) {
+      if (ev.pointerType === 'touch' || ev.pointerType === 'pen') return;
+      if (ev.button && ev.button !== 0) return;
+      start(ev.clientX, ev.clientY);
+    });
+    el.addEventListener('pointermove', function (ev) {
+      if (ev.pointerType === 'touch' || ev.pointerType === 'pen') return;
+      moved(ev.clientX, ev.clientY);
+    });
+    el.addEventListener('pointerup', function (ev) {
+      if (ev.pointerType === 'touch' || ev.pointerType === 'pen') return;
+      stopTimer();
+    });
+    el.addEventListener('contextmenu', function (ev) {
+      ev.preventDefault();
+      stopTimer();
+      suppressClick = true;
+      onLongPress();
     });
   }
 
   function bindCards() {
     content.querySelectorAll('.day-card').forEach(function (card) {
-      card.addEventListener('pointerdown', function (ev) {
-        if (ev.button && ev.button !== 0) return;
-        clearPress();
-        pressStart = { x: ev.clientX, y: ev.clientY, card: card };
-        card.classList.add('is-pressing');
-        try { card.setPointerCapture(ev.pointerId); } catch (e1) {}
-        pressTimer = setTimeout(function () {
-          pressTimer = null;
-          suppressClick = true;
-          openDialog(card.getAttribute('data-iso'), card.getAttribute('data-label'));
-          clearPress();
-        }, LONG_PRESS_MS);
-      });
-      card.addEventListener('pointermove', function (ev) {
-        if (!pressStart) return;
-        var dx = ev.clientX - pressStart.x;
-        var dy = ev.clientY - pressStart.y;
-        if ((dx * dx + dy * dy) > MOVE_CANCEL_PX * MOVE_CANCEL_PX) clearPress();
-      });
-      card.addEventListener('pointerup', clearPress);
-      card.addEventListener('pointercancel', clearPress);
-      card.addEventListener('contextmenu', function (ev) {
-        ev.preventDefault();
-        clearPress();
+      if (card.getAttribute('data-besucher-bound') === '1') return;
+      card.setAttribute('data-besucher-bound', '1');
+      bindLongPress(card, function () {
         openDialog(card.getAttribute('data-iso'), card.getAttribute('data-label'));
       });
+      var btn = card.querySelector('.day-capture');
+      if (btn) {
+        btn.addEventListener('click', function (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          openDialog(card.getAttribute('data-iso'), card.getAttribute('data-label'));
+        });
+      }
       card.addEventListener('click', function (ev) {
+        if (ev.target && ev.target.closest && ev.target.closest('.day-capture')) return;
         if (suppressClick) {
           ev.preventDefault();
           ev.stopPropagation();
@@ -763,6 +823,50 @@
   refreshButton.addEventListener('click', loadData);
   loadData();
   logAufruf(TEIL.gesamt);
+
+  if (/\bselftest=1\b/.test(window.location.search || '')) {
+    window.__diensteSelftest = function () {
+      return new Promise(function (resolve, reject) {
+        var tries = 0;
+        function waitCards() {
+          var card = content.querySelector('.day-card');
+          if (card) return run(card);
+          if (++tries > 40) return reject(new Error('keine Karten'));
+          setTimeout(waitCards, 50);
+        }
+        function run(card) {
+          var btn = card.querySelector('.day-capture');
+          if (!btn) return reject(new Error('kein Knopf'));
+          btn.click();
+          if (!dialog.classList.contains('open')) return reject(new Error('Knopf öffnet nicht'));
+          closeDialog();
+          var ev = new PointerEvent('pointerdown', {
+            bubbles: true, cancelable: true, pointerType: 'mouse', button: 0,
+            clientX: 24, clientY: 24
+          });
+          card.dispatchEvent(ev);
+          setTimeout(function () {
+            if (!dialog.classList.contains('open')) {
+              reject(new Error('Langer Mausdruck öffnet nicht'));
+              return;
+            }
+            resolve('ok');
+          }, LONG_PRESS_MS + 80);
+        }
+        waitCards();
+      }).then(function (msg) {
+        document.title = 'SELFTEST:OK ' + msg;
+        document.documentElement.setAttribute('data-selftest', 'ok');
+        return msg;
+      }).catch(function (err) {
+        document.title = 'SELFTEST:FAIL ' + err.message;
+        document.documentElement.setAttribute('data-selftest', 'fail');
+        throw err;
+      });
+    };
+    if (document.readyState === 'complete') window.__diensteSelftest();
+    else window.addEventListener('load', function () { window.__diensteSelftest(); });
+  }
 })();
   </script>
 </body>
