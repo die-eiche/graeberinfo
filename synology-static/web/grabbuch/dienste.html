@@ -95,10 +95,8 @@
       -webkit-user-select: none;
       -webkit-touch-callout: none;
       -webkit-user-drag: none;
-      touch-action: pan-y;
     }
     .day-card.is-today { border-color: #8fbf96; box-shadow: 0 0 0 2px rgba(47, 93, 58, 0.12); }
-    .day-card.is-pressing { background: #eef6ef; }
     .day-title {
       font-size: 1.05rem;
       font-weight: 700;
@@ -111,13 +109,30 @@
       font-size: 0.88rem;
       color: var(--muted);
     }
-    .day-capture {
+    .group-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.45rem;
       margin-top: 0.7rem;
-      width: 100%;
+    }
+    .group-actions button {
+      font-weight: 650;
+      padding: 0.85rem 0.5rem;
+    }
+    .group-actions button[data-type="hinterbliebene"] {
       background: #eef6ef;
       border-color: #cde3d1;
-      color: var(--accent);
-      font-weight: 650;
+      color: var(--grab);
+    }
+    .group-actions button[data-type="hausfuehrung"] {
+      background: #eef3f8;
+      border-color: #c5d4e4;
+      color: var(--fuehrung);
+    }
+    .group-actions button[data-type="grabverkauf"] {
+      background: #f7f1e6;
+      border-color: #e4d4b8;
+      color: var(--verkauf);
     }
     .error {
       background: #fff5f5;
@@ -152,102 +167,6 @@
       margin: 0.25rem 0 0.9rem;
       color: var(--muted);
     }
-    .wheel-label {
-      text-align: center;
-      font-size: 0.82rem;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 0.35rem;
-    }
-    .wheel-wrap {
-      position: relative;
-      height: 168px;
-      margin: 0 auto 1rem;
-      max-width: 180px;
-    }
-    .wheel {
-      height: 168px;
-      overflow-y: auto;
-      scroll-snap-type: y mandatory;
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;
-      scrollbar-width: none;
-    }
-    .wheel::-webkit-scrollbar { display: none; }
-    .wheel-pad { height: 56px; }
-    .wheel-item {
-      height: 56px;
-      scroll-snap-align: center;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 2rem;
-      font-weight: 650;
-      color: #9aa5b1;
-    }
-    .wheel-item.is-active { color: var(--text); font-size: 2.35rem; }
-    .wheel-overlay {
-      pointer-events: none;
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(#fff 0%, rgba(255,255,255,0) 28%, rgba(255,255,255,0) 72%, #fff 100%);
-    }
-    .wheel-window {
-      pointer-events: none;
-      position: absolute;
-      left: 8px;
-      right: 8px;
-      top: 56px;
-      height: 56px;
-      border-radius: 0.6rem;
-      border: 1px solid #c5d4c8;
-      background: rgba(47, 93, 58, 0.06);
-    }
-    .type-toggle {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 0.45rem;
-      margin-bottom: 1rem;
-    }
-    .type-toggle button {
-      padding: 0.85rem 0.5rem;
-      font-weight: 650;
-    }
-    .type-toggle button.is-on[data-type="hinterbliebene"] {
-      background: var(--grab);
-      color: #fff;
-      border-color: var(--grab);
-    }
-    .type-toggle button.is-on[data-type="hausfuehrung"] {
-      background: var(--fuehrung);
-      color: #fff;
-      border-color: var(--fuehrung);
-    }
-    .type-toggle button.is-on[data-type="grabverkauf"] {
-      background: var(--verkauf);
-      color: #fff;
-      border-color: var(--verkauf);
-    }
-    .dialog-actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.55rem;
-    }
-    .dialog-actions .save {
-      background: var(--accent);
-      color: #fff;
-      border-color: var(--accent);
-      font-weight: 650;
-    }
-    .status {
-      min-height: 1.2rem;
-      margin: 0.55rem 0 0;
-      font-size: 0.9rem;
-      color: #b42318;
-      text-align: center;
-    }
-    .status.ok { color: var(--accent); }
     .toast {
       position: fixed;
       left: 50%;
@@ -263,12 +182,16 @@
       transition: opacity 0.2s ease;
       z-index: 10001;
     }
+    .toast.show { opacity: 1; }
     .gedenken-list {
       max-height: 50vh;
       overflow: auto;
       margin: 0 0 1rem;
     }
     .gedenken-list .day-card { margin-bottom: 0.5rem; padding: 0.75rem; }
+    @media (min-width: 560px) {
+      .group-actions { grid-template-columns: 1fr 1fr 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -277,10 +200,10 @@
       <img class="logo" src="grabbuch-icon.png" alt="">
       <div class="header-text">
         <h1>Dienste</h1>
-        <p>Nächste 10 Tage · Besucher erfassen</p>
+        <p>Nächste 10 Tage · Gruppen erfassen</p>
       </div>
     </header>
-    <p class="hint">Einen Tag etwa eine halbe Sekunde gedrückt halten – oder „Besucher eintragen“ tippen. Im Fenster Anzahl (1–30) und genau eine Gruppe wählen, danach Speichern.</p>
+    <p class="hint">Tippe die Gruppe, die du eintragen möchtest. Jeder Tipp speichert genau eine Gruppe – ohne Anzahl- oder Extra-Abfrage.</p>
     <div class="toolbar">
       <button id="gedenken" type="button">Geburts- und Sterbetage</button>
       <button id="refresh" type="button">Aktualisieren</button>
@@ -288,28 +211,6 @@
     <div id="content"></div>
   </main>
 
-  <div class="dialog" id="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
-    <div class="dialog-card">
-      <h2 id="dialog-title">Besucher eintragen</h2>
-      <p class="dialog-date" id="dialog-date"></p>
-      <div class="wheel-label">Anzahl · Scrollrad</div>
-      <div class="wheel-wrap">
-        <div class="wheel" id="wheel"></div>
-        <div class="wheel-overlay"></div>
-        <div class="wheel-window"></div>
-      </div>
-      <div class="type-toggle">
-        <button type="button" data-type="hinterbliebene">Hinterbliebene</button>
-        <button type="button" data-type="hausfuehrung">Hausführung</button>
-        <button type="button" data-type="grabverkauf">Grabverkauf</button>
-      </div>
-      <div class="dialog-actions">
-        <button type="button" id="cancel">Abbrechen</button>
-        <button type="button" class="save" id="save">Speichern</button>
-      </div>
-      <p class="status" id="status"></p>
-    </div>
-  </div>
   <div class="toast" id="toast"></div>
 
   <div class="dialog" id="gedenken-dialog" role="dialog" aria-modal="true" aria-labelledby="gedenken-title">
@@ -323,46 +224,34 @@
 
   <script>
 (function () {
-  var LONG_PRESS_MS = 450;
-  var MOVE_CANCEL_PX = 28;
-  var MIN = 1;
-  var MAX = 30;
-  var ITEM_H = 56;
   var WEEKDAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
-  var content = document.getElementById('content');
-  var refreshButton = document.getElementById('refresh');
-  var dialog = document.getElementById('dialog');
-  var dialogDate = document.getElementById('dialog-date');
-  var wheelEl = document.getElementById('wheel');
-  var statusEl = document.getElementById('status');
-  var toastEl = document.getElementById('toast');
-  var saveBtn = document.getElementById('save');
-  var cancelBtn = document.getElementById('cancel');
-  var typeButtons = Array.prototype.slice.call(document.querySelectorAll('.type-toggle button'));
-
-  var days = [];
-  var statsByIso = {};
-  var selectedIso = '';
-  var selectedLabel = '';
-  var count = 1;
-  var visitorType = 'hinterbliebene';
+  var GROUPS = [
+    { type: 'hinterbliebene', label: 'Hinterbliebene' },
+    { type: 'hausfuehrung', label: 'Hausführung' },
+    { type: 'grabverkauf', label: 'Grabverkauf' }
+  ];
   var TYPE_LABELS = {
     hinterbliebene: 'Hinterbliebene',
     hausfuehrung: 'Hausführung',
     grabverkauf: 'Grabverkauf'
   };
-  var wheelReady = false;
-  var suppressClick = false;
-  var toastTimer = null;
   var TEIL = {
     gesamt: 'Gesamtprogramm',
     gedenken: 'Unterprogramm Geburts- und Sterbetage',
     besucher: 'Unterprogramm Eintrag Besuchergruppe'
   };
+  var content = document.getElementById('content');
+  var refreshButton = document.getElementById('refresh');
+  var toastEl = document.getElementById('toast');
   var gedenkenDialog = document.getElementById('gedenken-dialog');
   var gedenkenList = document.getElementById('gedenken-list');
   var gedenkenBtn = document.getElementById('gedenken');
   var gedenkenClose = document.getElementById('gedenken-close');
+
+  var days = [];
+  var statsByIso = {};
+  var toastTimer = null;
+  var saving = false;
 
   function logAufruf(teil) {
     fetch(resourceUrl('zaehlung.php'), {
@@ -499,10 +388,17 @@
   function countsText(iso) {
     var s = statsByIso[iso] || emptyStats();
     if (!s.hinterbliebene && !s.hausfuehrung && !s.grabverkauf) {
-      return 'Noch keine Besucher für diesen Tag gespeichert.';
+      return 'Noch keine Gruppen für diesen Tag gespeichert.';
     }
-    return 'Gespeichert: ' + s.hinterbliebene + ' Hinterbliebene, ' +
+    return 'Gruppen: ' + s.hinterbliebene + ' Hinterbliebene, ' +
       s.hausfuehrung + ' Hausführung, ' + s.grabverkauf + ' Grabverkauf';
+  }
+
+  function groupButtonsHtml() {
+    return '<div class="group-actions">' + GROUPS.map(function (g) {
+      return '<button type="button" class="group-save" data-type="' + g.type + '">' +
+        escapeHtml(g.label) + '</button>';
+    }).join('') + '</div>';
   }
 
   function renderDays() {
@@ -517,7 +413,7 @@
         '<div class="day-title">' + escapeHtml(day.weekday) + ', ' + escapeHtml(day.date) + '</div>' +
         '<div class="staff">' + staff + '</div>' +
         '<div class="counts">' + escapeHtml(countsText(day.iso)) + '</div>' +
-        '<button type="button" class="day-capture">Besucher eintragen</button>' +
+        groupButtonsHtml() +
         '</section>';
     }).join('');
     bindCards();
@@ -567,156 +463,24 @@
     });
   }
 
-  function bindLongPress(el, onLongPress) {
-    var timer = null;
-    var startX = 0;
-    var startY = 0;
-    var active = false;
-
-    function start(x, y) {
-      stopTimer();
-      active = true;
-      startX = x;
-      startY = y;
-      el.classList.add('is-pressing');
-      timer = setTimeout(function () {
-        timer = null;
-        active = false;
-        el.classList.remove('is-pressing');
-        suppressClick = true;
-        try { if (navigator.vibrate) navigator.vibrate(15); } catch (e1) {}
-        onLongPress();
-      }, LONG_PRESS_MS);
-    }
-
-    function moved(x, y) {
-      if (!active) return;
-      var dx = x - startX;
-      var dy = y - startY;
-      if ((dx * dx + dy * dy) > MOVE_CANCEL_PX * MOVE_CANCEL_PX) stopTimer();
-    }
-
-    function stopTimer() {
-      if (timer) {
-        clearTimeout(timer);
-        timer = null;
-      }
-      active = false;
-      el.classList.remove('is-pressing');
-    }
-
-    el.addEventListener('touchstart', function (ev) {
-      if (ev.touches.length !== 1) {
-        stopTimer();
-        return;
-      }
-      var t = ev.touches[0];
-      start(t.clientX, t.clientY);
-    }, { passive: true });
-    el.addEventListener('touchmove', function (ev) {
-      if (!ev.touches.length) return;
-      var t = ev.touches[0];
-      moved(t.clientX, t.clientY);
-    }, { passive: true });
-    el.addEventListener('touchend', stopTimer);
-    el.addEventListener('touchcancel', stopTimer);
-
-    el.addEventListener('pointerdown', function (ev) {
-      if (ev.pointerType === 'touch' || ev.pointerType === 'pen') return;
-      if (ev.button && ev.button !== 0) return;
-      start(ev.clientX, ev.clientY);
-    });
-    el.addEventListener('pointermove', function (ev) {
-      if (ev.pointerType === 'touch' || ev.pointerType === 'pen') return;
-      moved(ev.clientX, ev.clientY);
-    });
-    el.addEventListener('pointerup', function (ev) {
-      if (ev.pointerType === 'touch' || ev.pointerType === 'pen') return;
-      stopTimer();
-    });
-    el.addEventListener('contextmenu', function (ev) {
-      ev.preventDefault();
-      stopTimer();
-      suppressClick = true;
-      onLongPress();
-    });
-  }
-
   function bindCards() {
     content.querySelectorAll('.day-card').forEach(function (card) {
       if (card.getAttribute('data-besucher-bound') === '1') return;
       card.setAttribute('data-besucher-bound', '1');
-      bindLongPress(card, function () {
-        openDialog(card.getAttribute('data-iso'), card.getAttribute('data-label'));
-      });
-      var btn = card.querySelector('.day-capture');
-      if (btn) {
+      card.querySelectorAll('.group-save').forEach(function (btn) {
         btn.addEventListener('click', function (ev) {
           ev.preventDefault();
           ev.stopPropagation();
-          openDialog(card.getAttribute('data-iso'), card.getAttribute('data-label'));
+          saveGroup(card, btn.getAttribute('data-type'));
         });
-      }
-      card.addEventListener('click', function (ev) {
-        if (ev.target && ev.target.closest && ev.target.closest('.day-capture')) return;
-        if (suppressClick) {
-          ev.preventDefault();
-          ev.stopPropagation();
-          suppressClick = false;
-        }
       });
     });
   }
 
-  function buildWheel() {
-    var html = '<div class="wheel-pad"></div>';
-    for (var n = MIN; n <= MAX; n++) {
-      html += '<div class="wheel-item" data-n="' + n + '">' + n + '</div>';
-    }
-    html += '<div class="wheel-pad"></div>';
-    wheelEl.innerHTML = html;
-  }
-
-  function setCount(n, scroll) {
-    count = Math.max(MIN, Math.min(MAX, n | 0));
-    wheelEl.querySelectorAll('.wheel-item').forEach(function (el) {
-      el.classList.toggle('is-active', +el.getAttribute('data-n') === count);
+  function setCardBusy(card, busy) {
+    card.querySelectorAll('.group-save').forEach(function (btn) {
+      btn.disabled = busy;
     });
-    if (scroll) {
-      wheelReady = false;
-      wheelEl.scrollTop = (count - MIN) * ITEM_H;
-      requestAnimationFrame(function () { wheelReady = true; });
-    }
-  }
-
-  function countFromScroll() {
-    return Math.max(MIN, Math.min(MAX, Math.round(wheelEl.scrollTop / ITEM_H) + MIN));
-  }
-
-  function setType(t) {
-    visitorType = TYPE_LABELS[t] ? t : 'hinterbliebene';
-    typeButtons.forEach(function (btn) {
-      if (btn.getAttribute('data-type') === visitorType) btn.classList.add('is-on');
-      else btn.classList.remove('is-on');
-    });
-  }
-
-  function openDialog(iso, label) {
-    selectedIso = iso;
-    selectedLabel = label || germanDate(iso);
-    dialogDate.textContent = selectedLabel;
-    statusEl.textContent = '';
-    statusEl.className = 'status';
-    saveBtn.disabled = false;
-    setType('hinterbliebene');
-    dialog.classList.add('open');
-    setCount(1, true);
-    logAufruf(TEIL.besucher);
-  }
-
-  function closeDialog() {
-    dialog.classList.remove('open');
-    selectedIso = '';
   }
 
   function showToast(msg) {
@@ -734,17 +498,18 @@
     return iso + ' ' + pad2(h) + ':00';
   }
 
-  function saveVisitor() {
-    if (!selectedIso || saveBtn.disabled) return;
+  function saveGroup(card, type) {
+    var iso = card.getAttribute('data-iso');
+    if (!iso || saving || !TYPE_LABELS[type]) return;
+    saving = true;
+    setCardBusy(card, true);
+    logAufruf(TEIL.besucher);
     var body = {
       action: 'append',
-      kategorie: visitorType,
-      anzahl: count,
-      zeitstempel: timestampFor(selectedIso)
+      kategorie: type,
+      anzahl: 1,
+      zeitstempel: timestampFor(iso)
     };
-    saveBtn.disabled = true;
-    statusEl.textContent = 'Speichere…';
-    statusEl.className = 'status';
     fetch(resourceUrl('besucher.php'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -754,15 +519,15 @@
         if (!res.json || !res.json.ok) {
           throw new Error((res.json && res.json.error) || 'Speichern fehlgeschlagen');
         }
-        var label = count + ' ' + (TYPE_LABELS[visitorType] || visitorType);
-        closeDialog();
-        showToast('Gespeichert: ' + label);
+        showToast('Gespeichert: ' + TYPE_LABELS[type]);
         return loadBesucher().then(renderDays);
       })
       .catch(function (err) {
-        statusEl.textContent = err.message || String(err);
-        statusEl.className = 'status';
-        saveBtn.disabled = false;
+        showToast(err.message || String(err));
+        setCardBusy(card, false);
+      })
+      .then(function () {
+        saving = false;
       });
   }
 
@@ -781,44 +546,13 @@
     gedenkenDialog.classList.remove('open');
   }
 
-  buildWheel();
-  setType('hinterbliebene');
-
-  wheelEl.addEventListener('scroll', function () {
-    if (!wheelReady) return;
-    var n = countFromScroll();
-    if (n !== count) setCount(n, false);
-  });
-
-  dialog.addEventListener('wheel', function (ev) {
-    if (!dialog.classList.contains('open')) return;
-    ev.preventDefault();
-    setCount(count + (ev.deltaY > 0 ? 1 : -1), true);
-  }, { passive: false });
-
-  typeButtons.forEach(function (btn) {
-    btn.addEventListener('click', function () { setType(btn.getAttribute('data-type')); });
-  });
-  cancelBtn.addEventListener('click', closeDialog);
-  saveBtn.addEventListener('click', saveVisitor);
-  dialog.addEventListener('click', function (ev) {
-    if (ev.target === dialog) closeDialog();
-  });
-  document.addEventListener('keydown', function (ev) {
-    if (gedenkenDialog.classList.contains('open')) {
-      if (ev.key === 'Escape') closeGedenken();
-      return;
-    }
-    if (!dialog.classList.contains('open')) return;
-    if (ev.key === 'Escape') closeDialog();
-    if (ev.key === 'ArrowUp') { ev.preventDefault(); setCount(count - 1, true); }
-    if (ev.key === 'ArrowDown') { ev.preventDefault(); setCount(count + 1, true); }
-    if (ev.key === 'Enter') saveVisitor();
-  });
   gedenkenBtn.addEventListener('click', openGedenken);
   gedenkenClose.addEventListener('click', closeGedenken);
   gedenkenDialog.addEventListener('click', function (ev) {
     if (ev.target === gedenkenDialog) closeGedenken();
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && gedenkenDialog.classList.contains('open')) closeGedenken();
   });
   refreshButton.addEventListener('click', loadData);
   loadData();
@@ -828,6 +562,28 @@
     window.__diensteSelftest = function () {
       return new Promise(function (resolve, reject) {
         var tries = 0;
+        var posted = [];
+        var origFetch = window.fetch;
+        window.fetch = function (url, opts) {
+          var href = String(url || '');
+          var method = ((opts && opts.method) || 'GET').toUpperCase();
+          if (method === 'POST' && /besucher\.php/i.test(href)) {
+            var payload = {};
+            try { payload = JSON.parse((opts && opts.body) || '{}'); } catch (e1) {}
+            posted.push(payload);
+            return Promise.resolve(new Response(JSON.stringify({ ok: true, row: payload }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            }));
+          }
+          if (/besucher\.php/i.test(href) && method === 'GET') {
+            return Promise.resolve(new Response(JSON.stringify({ ok: true, rows: [] }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            }));
+          }
+          return origFetch.apply(this, arguments);
+        };
         function waitCards() {
           var card = content.querySelector('.day-card');
           if (card) return run(card);
@@ -835,23 +591,27 @@
           setTimeout(waitCards, 50);
         }
         function run(card) {
-          var btn = card.querySelector('.day-capture');
-          if (!btn) return reject(new Error('kein Knopf'));
-          btn.click();
-          if (!dialog.classList.contains('open')) return reject(new Error('Knopf öffnet nicht'));
-          closeDialog();
-          var ev = new PointerEvent('pointerdown', {
-            bubbles: true, cancelable: true, pointerType: 'mouse', button: 0,
-            clientX: 24, clientY: 24
-          });
-          card.dispatchEvent(ev);
+          var buttons = card.querySelectorAll('.group-save');
+          if (buttons.length !== 3) return reject(new Error('keine drei Gruppenknöpfe'));
+          var types = Array.prototype.map.call(buttons, function (b) { return b.getAttribute('data-type'); });
+          if (types.join(',') !== 'hinterbliebene,hausfuehrung,grabverkauf') {
+            return reject(new Error('falsche Gruppen: ' + types.join(',')));
+          }
+          if (document.getElementById('dialog') || document.getElementById('wheel')) {
+            return reject(new Error('Anzahl-Dialog noch vorhanden'));
+          }
+          buttons[0].click();
           setTimeout(function () {
-            if (!dialog.classList.contains('open')) {
-              reject(new Error('Langer Mausdruck öffnet nicht'));
-              return;
+            window.fetch = origFetch;
+            if (!posted.length) return reject(new Error('kein Speichern'));
+            var body = posted[0];
+            if (body.kategorie !== 'hinterbliebene') return reject(new Error('falsche Kategorie'));
+            if (+body.anzahl !== 1) return reject(new Error('Anzahl ist nicht 1'));
+            if (document.querySelector('.dialog.open') && !gedenkenDialog.classList.contains('open')) {
+              return reject(new Error('unerwarteter Dialog'));
             }
             resolve('ok');
-          }, LONG_PRESS_MS + 80);
+          }, 80);
         }
         waitCards();
       }).then(function (msg) {

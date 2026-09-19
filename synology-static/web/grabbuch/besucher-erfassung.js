@@ -1,20 +1,15 @@
 (function () {
-  var LONG_PRESS_MS = 450;
-  var MOVE_CANCEL_PX = 28;
-  var MIN = 1;
-  var MAX = 30;
-  var ITEM_H = 56;
-  var suppressClick = false;
-  var count = 1;
-  var visitorType = 'hinterbliebene';
   var TYPE_LABELS = {
     hinterbliebene: 'Hinterbliebene',
     hausfuehrung: 'Hausführung',
     grabverkauf: 'Grabverkauf'
   };
-  var selectedIso = '';
-  var selectedLabel = '';
-  var wheelReady = false;
+  var GROUPS = [
+    { type: 'hinterbliebene', label: 'Hinterbliebene' },
+    { type: 'hausfuehrung', label: 'Hausführung' },
+    { type: 'grabverkauf', label: 'Grabverkauf' }
+  ];
+  var saving = false;
   var toastTimer = null;
 
   function zaehlungUrl() {
@@ -71,122 +66,23 @@
   }
 
   function ensureUi() {
-    if (document.getElementById('besucher-dialog')) return;
+    if (document.getElementById('besucher-erfassung-style')) return;
     var style = document.createElement('style');
+    style.id = 'besucher-erfassung-style';
     style.textContent =
-      '.besucher-dialog{position:fixed;inset:0;z-index:10000;background:rgba(20,28,24,.55);display:none;align-items:center;justify-content:center;padding:1rem}' +
-      '.besucher-dialog.open{display:flex}' +
-      '.besucher-card{width:min(420px,100%);background:#fff;border-radius:1rem;padding:1.15rem;box-shadow:0 18px 50px rgba(16,24,40,.28);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}' +
-      '.besucher-card h2{margin:0;font-size:1.2rem;color:#2f5d3a}' +
-      '.besucher-date{margin:.25rem 0 .9rem;color:#7b8794}' +
-      '.besucher-wheel-wrap{position:relative;height:168px;margin:0 auto 1rem;max-width:180px}' +
-      '.besucher-wheel{height:168px;overflow-y:auto;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}' +
-      '.besucher-wheel::-webkit-scrollbar{display:none}' +
-      '.besucher-wheel-pad{height:56px}' +
-      '.besucher-wheel-item{height:56px;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:650;color:#9aa5b1}' +
-      '.besucher-wheel-item.is-active{color:#1f2933;font-size:2.35rem}' +
-      '.besucher-wheel-overlay{pointer-events:none;position:absolute;inset:0;background:linear-gradient(#fff 0%,rgba(255,255,255,0) 28%,rgba(255,255,255,0) 72%,#fff 100%)}' +
-      '.besucher-wheel-window{pointer-events:none;position:absolute;left:8px;right:8px;top:56px;height:56px;border-radius:.6rem;border:1px solid #c5d4c8;background:rgba(47,93,58,.06)}' +
-      '.besucher-types,.besucher-actions{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-bottom:.85rem}' +
-      '.besucher-types{grid-template-columns:1fr}' +
-      '.besucher-card button{border:1px solid #d9e2ec;background:#fff;border-radius:.5rem;padding:.75rem .5rem;font-size:1rem;cursor:pointer}' +
-      '.besucher-types button.is-on[data-type="hinterbliebene"]{background:#2f5d3a;color:#fff;border-color:#2f5d3a}' +
-      '.besucher-types button.is-on[data-type="hausfuehrung"]{background:#1d4e89;color:#fff;border-color:#1d4e89}' +
-      '.besucher-types button.is-on[data-type="grabverkauf"]{background:#8a5a12;color:#fff;border-color:#8a5a12}' +
-      '.besucher-save{background:#2f5d3a;color:#fff;border-color:#2f5d3a;font-weight:650}' +
-      '.besucher-status{min-height:1.2rem;margin:0;font-size:.9rem;color:#b42318;text-align:center}' +
-      '.besucher-toast{position:fixed;left:50%;bottom:1.4rem;transform:translateX(-50%);background:#1f2933;color:#fff;padding:.7rem 1rem;border-radius:999px;opacity:0;z-index:10001;transition:opacity .2s}' +
+      '.group-actions{display:grid;grid-template-columns:1fr;gap:.45rem;margin-top:.7rem}' +
+      '.group-actions button{border:1px solid #d9e2ec;background:#fff;border-radius:.5rem;padding:.85rem .5rem;font-size:1rem;font-weight:650;cursor:pointer}' +
+      '.group-actions button[data-type="hinterbliebene"]{background:#eef6ef;border-color:#cde3d1;color:#2f5d3a}' +
+      '.group-actions button[data-type="hausfuehrung"]{background:#eef3f8;border-color:#c5d4e4;color:#1d4e89}' +
+      '.group-actions button[data-type="grabverkauf"]{background:#f7f1e6;border-color:#e4d4b8;color:#8a5a12}' +
+      '.group-actions button:disabled{opacity:.55;cursor:not-allowed}' +
+      '.besucher-toast{position:fixed;left:50%;bottom:1.4rem;transform:translateX(-50%);background:#1f2933;color:#fff;padding:.7rem 1rem;border-radius:999px;opacity:0;z-index:10001;transition:opacity .2s;pointer-events:none}' +
       '.besucher-toast.show{opacity:1}' +
-      '.day-card{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:pan-y}' +
-      '.day-card.is-pressing{background:#eef6ef}';
+      '@media (min-width:560px){.group-actions{grid-template-columns:1fr 1fr 1fr}}';
     document.head.appendChild(style);
-
-    var html = '<div class="besucher-dialog" id="besucher-dialog">' +
-      '<div class="besucher-card">' +
-      '<h2>Besucher eintragen</h2>' +
-      '<p class="besucher-date" id="besucher-date"></p>' +
-      '<div class="besucher-wheel-wrap"><div class="besucher-wheel" id="besucher-wheel"></div>' +
-      '<div class="besucher-wheel-overlay"></div><div class="besucher-wheel-window"></div></div>' +
-      '<div class="besucher-types">' +
-      '<button type="button" data-type="hinterbliebene">Hinterbliebene</button>' +
-      '<button type="button" data-type="hausfuehrung">Hausführung</button>' +
-      '<button type="button" data-type="grabverkauf">Grabverkauf</button></div>' +
-      '<div class="besucher-actions">' +
-      '<button type="button" id="besucher-cancel">Abbrechen</button>' +
-      '<button type="button" class="besucher-save" id="besucher-save">Speichern</button></div>' +
-      '<p class="besucher-status" id="besucher-status"></p></div></div>' +
-      '<div class="besucher-toast" id="besucher-toast"></div>';
-    document.body.insertAdjacentHTML('beforeend', html);
-
-    var wheel = document.getElementById('besucher-wheel');
-    var pad = '<div class="besucher-wheel-pad"></div>';
-    var items = '';
-    for (var n = MIN; n <= MAX; n++) items += '<div class="besucher-wheel-item" data-n="' + n + '">' + n + '</div>';
-    wheel.innerHTML = pad + items + pad;
-
-    wheel.addEventListener('scroll', function () {
-      if (!wheelReady) return;
-      setCount(Math.max(MIN, Math.min(MAX, Math.round(wheel.scrollTop / ITEM_H) + MIN)), false);
-    });
-    var dlg = document.getElementById('besucher-dialog');
-    dlg.addEventListener('wheel', function (ev) {
-      if (!dlg.classList.contains('open')) return;
-      ev.preventDefault();
-      setCount(count + (ev.deltaY > 0 ? 1 : -1), true);
-    }, { passive: false });
-    dlg.querySelectorAll('.besucher-types button').forEach(function (btn) {
-      btn.addEventListener('click', function () { setType(btn.getAttribute('data-type')); });
-    });
-    document.getElementById('besucher-cancel').addEventListener('click', closeDialog);
-    document.getElementById('besucher-save').addEventListener('click', saveVisitor);
-    dlg.addEventListener('click', function (ev) { if (ev.target === dlg) closeDialog(); });
-    document.addEventListener('keydown', function (ev) {
-      if (!dlg.classList.contains('open')) return;
-      if (ev.key === 'Escape') closeDialog();
-      if (ev.key === 'ArrowUp') { ev.preventDefault(); setCount(count - 1, true); }
-      if (ev.key === 'ArrowDown') { ev.preventDefault(); setCount(count + 1, true); }
-      if (ev.key === 'Enter') saveVisitor();
-    });
-  }
-
-  function setCount(n, scroll) {
-    count = Math.max(MIN, Math.min(MAX, n | 0));
-    var wheel = document.getElementById('besucher-wheel');
-    wheel.querySelectorAll('.besucher-wheel-item').forEach(function (el) {
-      el.classList.toggle('is-active', +el.getAttribute('data-n') === count);
-    });
-    if (scroll) {
-      wheelReady = false;
-      wheel.scrollTop = (count - MIN) * ITEM_H;
-      requestAnimationFrame(function () { wheelReady = true; });
+    if (!document.getElementById('besucher-toast')) {
+      document.body.insertAdjacentHTML('beforeend', '<div class="besucher-toast" id="besucher-toast"></div>');
     }
-  }
-
-  function setType(t) {
-    visitorType = TYPE_LABELS[t] ? t : 'hinterbliebene';
-    document.querySelectorAll('.besucher-types button').forEach(function (btn) {
-      if (btn.getAttribute('data-type') === visitorType) btn.classList.add('is-on');
-      else btn.classList.remove('is-on');
-    });
-  }
-
-  function openDialog(iso, label) {
-    ensureUi();
-    selectedIso = iso;
-    selectedLabel = label;
-    document.getElementById('besucher-date').textContent = label;
-    document.getElementById('besucher-status').textContent = '';
-    document.getElementById('besucher-save').disabled = false;
-    setType('hinterbliebene');
-    document.getElementById('besucher-dialog').classList.add('open');
-    setCount(1, true);
-    logAufruf('Unterprogramm Eintrag Besuchergruppe');
-  }
-
-  function closeDialog() {
-    var dlg = document.getElementById('besucher-dialog');
-    if (dlg) dlg.classList.remove('open');
-    selectedIso = '';
   }
 
   function showToast(msg) {
@@ -198,123 +94,58 @@
     toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2600);
   }
 
-  function saveVisitor() {
-    var saveBtn = document.getElementById('besucher-save');
-    if (!selectedIso || saveBtn.disabled) return;
-    var body = {
-      action: 'append',
-      kategorie: visitorType,
-      anzahl: count,
-      zeitstempel: timestampFor(selectedIso)
-    };
-    saveBtn.disabled = true;
-    document.getElementById('besucher-status').textContent = 'Speichere…';
+  function saveGroup(card, type) {
+    var iso = card.getAttribute('data-iso') || isoFromGerman(card.getAttribute('data-date') || '');
+    if (!iso || saving || !TYPE_LABELS[type]) return;
+    saving = true;
+    card.querySelectorAll('.group-save').forEach(function (btn) { btn.disabled = true; });
+    logAufruf('Unterprogramm Eintrag Besuchergruppe');
     fetch(apiUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify({
+        action: 'append',
+        kategorie: type,
+        anzahl: 1,
+        zeitstempel: timestampFor(iso)
+      })
     }).then(function (r) { return r.json().then(function (j) { return { json: j }; }); })
       .then(function (res) {
         if (!res.json || !res.json.ok) throw new Error((res.json && res.json.error) || 'Speichern fehlgeschlagen');
-        var label = count + ' ' + (TYPE_LABELS[visitorType] || visitorType);
-        closeDialog();
-        showToast('Gespeichert: ' + label);
+        showToast('Gespeichert: ' + TYPE_LABELS[type]);
       })
       .catch(function (err) {
-        document.getElementById('besucher-status').textContent = err.message || String(err);
-        saveBtn.disabled = false;
+        showToast(err.message || String(err));
+      })
+      .then(function () {
+        saving = false;
+        card.querySelectorAll('.group-save').forEach(function (btn) { btn.disabled = false; });
       });
-  }
-
-  function bindLongPress(el, onLongPress) {
-    var timer = null;
-    var startX = 0;
-    var startY = 0;
-    var active = false;
-
-    function start(x, y) {
-      stopTimer();
-      active = true;
-      startX = x;
-      startY = y;
-      el.classList.add('is-pressing');
-      timer = setTimeout(function () {
-        timer = null;
-        active = false;
-        el.classList.remove('is-pressing');
-        suppressClick = true;
-        try { if (navigator.vibrate) navigator.vibrate(15); } catch (e1) {}
-        onLongPress();
-      }, LONG_PRESS_MS);
-    }
-
-    function moved(x, y) {
-      if (!active) return;
-      var dx = x - startX;
-      var dy = y - startY;
-      if ((dx * dx + dy * dy) > MOVE_CANCEL_PX * MOVE_CANCEL_PX) stopTimer();
-    }
-
-    function stopTimer() {
-      if (timer) {
-        clearTimeout(timer);
-        timer = null;
-      }
-      active = false;
-      el.classList.remove('is-pressing');
-    }
-
-    el.addEventListener('touchstart', function (ev) {
-      if (ev.touches.length !== 1) {
-        stopTimer();
-        return;
-      }
-      var t = ev.touches[0];
-      start(t.clientX, t.clientY);
-    }, { passive: true });
-    el.addEventListener('touchmove', function (ev) {
-      if (!ev.touches.length) return;
-      var t = ev.touches[0];
-      moved(t.clientX, t.clientY);
-    }, { passive: true });
-    el.addEventListener('touchend', stopTimer);
-    el.addEventListener('touchcancel', stopTimer);
-
-    el.addEventListener('pointerdown', function (ev) {
-      if (ev.pointerType === 'touch' || ev.pointerType === 'pen') return;
-      if (ev.button && ev.button !== 0) return;
-      start(ev.clientX, ev.clientY);
-    });
-    el.addEventListener('pointermove', function (ev) {
-      if (ev.pointerType === 'touch' || ev.pointerType === 'pen') return;
-      moved(ev.clientX, ev.clientY);
-    });
-    el.addEventListener('pointerup', function (ev) {
-      if (ev.pointerType === 'touch' || ev.pointerType === 'pen') return;
-      stopTimer();
-    });
-    el.addEventListener('contextmenu', function (ev) {
-      ev.preventDefault();
-      stopTimer();
-      suppressClick = true;
-      onLongPress();
-    });
   }
 
   function bindCard(card) {
     if (card.getAttribute('data-besucher-bound') === '1') return;
     card.setAttribute('data-besucher-bound', '1');
-    bindLongPress(card, function () {
-      var iso = card.getAttribute('data-iso') || isoFromGerman(card.getAttribute('data-date') || '');
-      var label = card.getAttribute('data-label') || (card.querySelector('.day-title') || {}).textContent || iso;
-      if (iso) openDialog(iso, label);
-    });
-    card.addEventListener('click', function (ev) {
-      if (suppressClick) {
+    if (card.closest && card.closest('#gedenken-dialog')) return;
+    if (!card.querySelector('.group-actions')) {
+      var wrap = document.createElement('div');
+      wrap.className = 'group-actions';
+      GROUPS.forEach(function (g) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'group-save';
+        btn.setAttribute('data-type', g.type);
+        btn.textContent = g.label;
+        wrap.appendChild(btn);
+      });
+      card.appendChild(wrap);
+    }
+    card.querySelectorAll('.group-save').forEach(function (btn) {
+      btn.addEventListener('click', function (ev) {
         ev.preventDefault();
         ev.stopPropagation();
-        suppressClick = false;
-      }
+        saveGroup(card, btn.getAttribute('data-type'));
+      });
     });
   }
 
@@ -326,7 +157,7 @@
   window.BesucherErfassung = {
     scan: scan,
     isoFromGerman: isoFromGerman,
-    openDialog: openDialog
+    saveGroup: saveGroup
   };
 
   if (document.readyState === 'loading') {

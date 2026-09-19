@@ -3,14 +3,14 @@
  * Besucherstatistik: Lesen, Anhängen, Demo-Leerung, monatliche Sicherung.
  *
  * GET  action=load     → JSON { rows, demo, wiped, source }
- * POST action=append   → { kategorie, anzahl, zeitstempel? }
+ * POST action=append   → { kategorie, anzahl?, zeitstempel? }
  *   kategorie: hinterbliebene | hausfuehrung | grabverkauf
- *   anzahl: 1–30; jeder Eintrag genau eine Gruppe.
+ *   anzahl: optional, Standard 1 (eine Gruppe); weiterhin 1–30 zulässig.
  * POST action=snapshot → { png: data-url oder base64, month: YYYY-MM }
  *
  * Ab 1.1.2027 00:00 (Europe/Berlin) werden Demo-Daten geleert
  * (sofort oder beim nächsten Zugriff). Danach kumulativ.
- * Aufnahme über dienste.html (POST append, Long-Press auf einen Tag).
+ * Aufnahme über dienste.html (POST append, Tipp auf eine Gruppe).
  */
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -388,7 +388,7 @@ try {
 
     if ($action === 'append') {
         $kat = besucher_normalize_kategorie((string) ($body['kategorie'] ?? $body['gruppe'] ?? ''));
-        $n = (int) ($body['anzahl'] ?? $body['count'] ?? 0);
+        $n = (int) ($body['anzahl'] ?? $body['count'] ?? 1);
         if ($kat === null) {
             $counts = [
                 'hinterbliebene' => (int) ($body['hinterbliebene'] ?? $body['grabbesucher'] ?? 0),
