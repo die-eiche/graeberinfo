@@ -40,29 +40,44 @@ let lastDayTapAt = 0;
 let lastDayTapKey = '';
 
 function parseGermanDate(value) {
-  const parts = String(value).split('.');
+  const text = String(value || '').trim();
+  let m = text.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+  if (m) {
+    return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  }
+  m = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) {
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  }
+  const parts = text.split('.');
   if (parts.length < 3) {
     return null;
   }
-
   return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
 }
 
 function startOfToday() {
+  const s = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Berlin' });
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) {
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  }
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return today;
 }
 
 function getVisibleDays(days) {
+  const list = Array.isArray(days) ? days : [];
   const today = startOfToday();
-
-  return days
-    .filter(day => {
-      const date = parseGermanDate(day.date);
-      return date && date >= today;
-    })
-    .slice(0, DISPLAY_DAYS);
+  const upcoming = list.filter(day => {
+    const date = parseGermanDate(day && day.date);
+    return date && !Number.isNaN(date.getTime()) && date >= today;
+  });
+  if (upcoming.length) {
+    return upcoming.slice(0, DISPLAY_DAYS);
+  }
+  return list.slice(0, DISPLAY_DAYS);
 }
 
 function normalizeName(value) {
