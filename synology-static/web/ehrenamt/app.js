@@ -14,11 +14,11 @@ const GRABBUCH_CSV_URL = '../grabbuch/daten.csv';
 const DOUBLE_TAP_MS = 350;
 const LONG_PRESS_MS = 560;
 const MOVE_CANCEL_PX = 12;
-const HINT_LANGTAP_KEY = 'ehrenamt-hint-langtap-v1';
+const HINT_LANGTAP_KEY = 'ehrenamt-hint-langtap-v2';
 const BESUCHER_API = '../grabbuch/besucher.php';
 const VISITOR_LABELS = {
-  hinterbliebene: 'Hinterbliebene',
-  hausfuehrung: 'Hausführung',
+  hinterbliebene: 'Angehörige',
+  hausfuehrung: 'Interessierte',
   grabverkauf: 'Grabverkauf'
 };
 const featureHint = document.getElementById('feature-hint');
@@ -364,9 +364,17 @@ function pad2(n) {
 }
 
 function visitorTimestamp(germanDate) {
-  const iso = isoFromGermanDate(germanDate) || berlinClock().iso;
   const clock = berlinClock();
-  return `${iso} ${pad2(clock.h)}:${pad2(clock.min)}`;
+  const iso = isoFromGermanDate(germanDate);
+  if (iso !== clock.iso) {
+    return '';
+  }
+  return `${clock.iso} ${pad2(clock.h)}:${pad2(clock.min)}`;
+}
+
+function isTodayCard(day) {
+  const iso = isoFromGermanDate(day && day.date);
+  return Boolean(iso && iso === berlinClock().iso);
 }
 
 function openVisitorDialog(day) {
@@ -426,6 +434,10 @@ async function saveVisitor(event) {
   }
 
   try {
+    const ts = visitorTimestamp(visitorDialog.dataset.date);
+    if (!ts) {
+      throw new Error('Einträge nur für den heutigen Tag.');
+    }
     const response = await fetch(BESUCHER_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -433,7 +445,7 @@ async function saveVisitor(event) {
         action: 'append',
         kategorie: kategorie,
         anzahl: 1,
-        zeitstempel: visitorTimestamp(visitorDialog.dataset.date)
+        zeitstempel: ts
       })
     });
     const json = await response.json();
@@ -493,11 +505,22 @@ function bindDayCardInteractions() {
       card.classList.remove('is-pressing');
     };
 
+    const openVisitor = () => {
+      if (!isTodayCard(day())) {
+        return false;
+      }
+      openVisitorDialog(day());
+      return true;
+    };
+
     card.addEventListener('pointerdown', ev => {
       if (ev.button && ev.button !== 0) {
         return;
       }
       longPressFired = false;
+      if (!isTodayCard(day())) {
+        return;
+      }
       clearPress();
       pressStart = { x: ev.clientX, y: ev.clientY };
       card.classList.add('is-pressing');
@@ -510,7 +533,7 @@ function bindDayCardInteractions() {
         lastDayTapAt = 0;
         lastDayTapKey = '';
         clearPress();
-        openVisitorDialog(day());
+        openVisitor();
       }, LONG_PRESS_MS);
     });
 
@@ -530,11 +553,14 @@ function bindDayCardInteractions() {
 
     card.addEventListener('contextmenu', ev => {
       ev.preventDefault();
+      if (!isTodayCard(day())) {
+        return;
+      }
       clearPress();
       longPressFired = true;
       lastDayTapAt = 0;
       lastDayTapKey = '';
-      openVisitorDialog(day());
+      openVisitor();
     });
 
     card.addEventListener('dblclick', event => {
@@ -573,7 +599,7 @@ function renderDays(days) {
   }
 
   content.innerHTML = visibleDays.map(day => `
-    <section class="day-card" data-date="${escapeHtml(day.date)}" data-weekday="${escapeHtml(day.weekday)}" title="Doppeltippen: Gedenken · Lange drücken: Besucher">
+    <section class="day-card" data-date="${escapeHtml(day.date)}" data-weekday="${escapeHtml(day.weekday)}" title="${isTodayCard(day) ? 'Doppeltippen: Gedenken · Lange drücken: Besucher' : 'Doppeltippen: Gedenken'}">
       <div class="day-title">${escapeHtml(day.weekday)}, ${escapeHtml(day.date)}</div>
       <div class="staff">
         ${day.staff.length

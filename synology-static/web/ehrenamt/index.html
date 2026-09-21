@@ -3,7 +3,7 @@
 <head>
 <script>
 (function () {
-  var BUILD = '2026-09-21-langtap2';
+  var BUILD = '2026-09-21-angehoerige';
   if (typeof fetch !== 'function') return;
   fetch('version.txt?_=' + Date.now(), { cache: 'no-store' })
     .then(function (r) { return r.ok ? r.text() : ''; })
@@ -30,11 +30,11 @@
   <meta name="apple-mobile-web-app-title" content="Wer hat Dienst">
   <meta name="theme-color" content="#730a2b">
   <title>Wer hat Dienst</title>
-  <!-- CACHE_BUILD: 2026-09-21-langtap2 -->
+  <!-- CACHE_BUILD: 2026-09-21-angehoerige -->
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" sizes="180x180" href="logo.png?v=2026-07-20-eichellaub">
   <link rel="icon" href="logo.png?v=2026-07-20-eichellaub" type="image/png">
-  <link rel="stylesheet" href="styles.css?v=2026-09-21-langtap2">
+  <link rel="stylesheet" href="styles.css?v=2026-09-21-angehoerige">
 </head>
 <body>
   <main>
@@ -47,7 +47,7 @@
     </header>
 
     <aside id="feature-hint" class="feature-hint" hidden>
-      <p>Doppel-Tippen auf einen Tag: Geburtstage und Todestage. Lange auf einen Tag drücken: Besucher eintragen (Hinterbliebene, Hausführung oder Grabverkauf).</p>
+      <p>Doppel-Tippen auf einen Tag: Geburtstage und Todestage. Lange auf den heutigen Tag drücken: Besucher eintragen (Angehörige, Interessierte oder Grabverkauf).</p>
       <button type="button" id="feature-hint-dismiss">Verstanden</button>
     </aside>
 
@@ -78,11 +78,11 @@
         <legend>Art der Besucher</legend>
         <label>
           <input type="radio" name="visitor-type" value="hinterbliebene" required>
-          Hinterbliebene
+          Angehörige
         </label>
         <label>
           <input type="radio" name="visitor-type" value="hausfuehrung">
-          Hausführung
+          Interessierte
         </label>
         <label>
           <input type="radio" name="visitor-type" value="grabverkauf">
@@ -97,6 +97,6 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=2026-09-21-langtap2"></script>
+  <script src="app.js?v=2026-09-21-angehoerige"></script>
 </body>
 </html>
