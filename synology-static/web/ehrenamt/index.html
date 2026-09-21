@@ -3,7 +3,7 @@
 <head>
 <script>
 (function () {
-  var BUILD = '2026-09-21-angehoerige';
+  var BUILD = '2026-09-21-tageszaehler';
   if (typeof fetch !== 'function') return;
   fetch('version.txt?_=' + Date.now(), { cache: 'no-store' })
     .then(function (r) { return r.ok ? r.text() : ''; })
@@ -30,11 +30,11 @@
   <meta name="apple-mobile-web-app-title" content="Wer hat Dienst">
   <meta name="theme-color" content="#730a2b">
   <title>Wer hat Dienst</title>
-  <!-- CACHE_BUILD: 2026-09-21-angehoerige -->
+  <!-- CACHE_BUILD: 2026-09-21-tageszaehler -->
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" sizes="180x180" href="logo.png?v=2026-07-20-eichellaub">
   <link rel="icon" href="logo.png?v=2026-07-20-eichellaub" type="image/png">
-  <link rel="stylesheet" href="styles.css?v=2026-09-21-angehoerige">
+  <link rel="stylesheet" href="styles.css?v=2026-09-21-tageszaehler">
 </head>
 <body>
   <main>
@@ -78,15 +78,18 @@
         <legend>Art der Besucher</legend>
         <label>
           <input type="radio" name="visitor-type" value="hinterbliebene" required>
-          Angehörige
+          <span class="visitor-type-text">Angehörige</span>
+          <span class="visitor-count" data-visitor-count="hinterbliebene"></span>
         </label>
         <label>
           <input type="radio" name="visitor-type" value="hausfuehrung">
-          Interessierte
+          <span class="visitor-type-text">Interessierte</span>
+          <span class="visitor-count" data-visitor-count="hausfuehrung"></span>
         </label>
         <label>
           <input type="radio" name="visitor-type" value="grabverkauf">
-          Grabverkauf
+          <span class="visitor-type-text">Grabverkauf</span>
+          <span class="visitor-count" data-visitor-count="grabverkauf"></span>
         </label>
       </fieldset>
       <p id="visitor-status" class="visitor-status"></p>
@@ -97,6 +100,6 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=2026-09-21-angehoerige"></script>
+  <script src="app.js?v=2026-09-21-tageszaehler"></script>
 </body>
 </html>

@@ -377,6 +377,83 @@ function isTodayCard(day) {
   return Boolean(iso && iso === berlinClock().iso);
 }
 
+function visitorRowIsoDate(row) {
+  const ts = String((row && row.zeitstempel) || '').trim();
+  const iso = ts.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (iso) {
+    return iso[1];
+  }
+  const german = ts.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+  if (german) {
+    return `${german[3]}-${pad2(german[2])}-${pad2(german[1])}`;
+  }
+  return '';
+}
+
+function visitorRowCount(row, key) {
+  if (!row || !key) {
+    return 0;
+  }
+  if (row.kategorie === key) {
+    const n = Number(row.anzahl);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+  const n = Number(row[key]);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+function visitorDayTotals(rows, isoDate) {
+  const totals = {
+    hinterbliebene: 0,
+    hausfuehrung: 0,
+    grabverkauf: 0
+  };
+  if (!isoDate || !Array.isArray(rows)) {
+    return totals;
+  }
+  rows.forEach(row => {
+    if (visitorRowIsoDate(row) !== isoDate) {
+      return;
+    }
+    Object.keys(totals).forEach(key => {
+      totals[key] += visitorRowCount(row, key);
+    });
+  });
+  return totals;
+}
+
+function setVisitorCounts(totals, state) {
+  document.querySelectorAll('[data-visitor-count]').forEach(el => {
+    const key = el.getAttribute('data-visitor-count');
+    el.classList.remove('is-loading', 'is-empty');
+    if (state === 'loading') {
+      el.textContent = '…';
+      el.classList.add('is-loading');
+      return;
+    }
+    if (state === 'error' || !totals || totals[key] == null) {
+      el.textContent = '–';
+      el.classList.add('is-empty');
+      return;
+    }
+    el.textContent = String(totals[key]);
+  });
+}
+
+async function loadVisitorDayCounts(isoDate) {
+  setVisitorCounts(null, 'loading');
+  try {
+    const response = await fetch(`${BESUCHER_API}?action=load&_=${Date.now()}`, { cache: 'no-store' });
+    const json = await response.json();
+    if (!response.ok || !json || !json.ok) {
+      throw new Error((json && json.error) || 'Zähler nicht geladen');
+    }
+    setVisitorCounts(visitorDayTotals(json.rows, isoDate));
+  } catch (error) {
+    setVisitorCounts(null, 'error');
+  }
+}
+
 function openVisitorDialog(day) {
   if (!visitorDialog) {
     return;
@@ -395,6 +472,8 @@ function openVisitorDialog(day) {
   if (visitorSave) {
     visitorSave.disabled = false;
   }
+  setVisitorCounts(null, 'loading');
+  loadVisitorDayCounts(isoFromGermanDate(day.date));
   if (typeof visitorDialog.showModal === 'function') {
     visitorDialog.showModal();
   } else {
