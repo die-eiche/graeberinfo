@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<script>
+(function () {
+  var BUILD = '2026-09-24-langtap';
+  if (typeof fetch !== 'function') return;
+  fetch('version.txt?_=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.text() : ''; })
+    .then(function (t) {
+      t = (t || '').trim();
+      if (!t || t === BUILD) return;
+      try {
+        var k = 'ehrenamt-reload-' + t;
+        if (sessionStorage.getItem(k)) return;
+        sessionStorage.setItem(k, '1');
+      } catch (e1) {}
+      location.reload();
+    })
+    .catch(function () {});
+})();
+</script>
+  <meta charset="utf-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Wer hat Dienst">
+  <meta name="theme-color" content="#730a2b">
+  <title>Wer hat Dienst</title>
+  <!-- CACHE_BUILD: 2026-09-24-langtap -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="180x180" href="logo.png?v=2026-07-20-eichellaub">
+  <link rel="icon" href="logo.png?v=2026-07-20-eichellaub" type="image/png">
+  <link rel="stylesheet" href="styles.css?v=2026-09-24-langtap">
+</head>
+<body>
+  <main>
+    <header>
+      <img class="logo" src="logo.png?v=2026-07-20-eichellaub" alt="Ehrenamt Logo">
+      <div class="header-text">
+        <h1 id="title-button" type="button">Wer hat Dienst?</h1>
+        <p>Nächste 10 Tage ab heute</p>
+      </div>
+    </header>
+
+    <aside id="feature-hint" class="feature-hint" hidden>
+      <p>Doppel-Tippen auf einen Tag: Geburtstage und Todestage. Lange auf den heutigen Tag drücken: Besucher eintragen (Angehörige, Interessierte oder Grabverkauf).</p>
+      <button type="button" id="feature-hint-dismiss">Verstanden</button>
+    </aside>
+
+    <div id="content"></div>
+  </main>
+
+  <dialog id="name-dialog" class="name-dialog">
+    <form id="name-form" method="dialog">
+      <label for="viewer-name">Dein Name (wie in der Liste)</label>
+      <input id="viewer-name" type="text" placeholder="z. B. Morenz, Peggy" autocomplete="name" spellcheck="false">
+      <button type="submit">Speichern</button>
+    </form>
+  </dialog>
+
+  <dialog id="memorial-dialog" class="memorial-dialog">
+    <div class="memorial-panel">
+      <h2 id="memorial-title">Gedenken</h2>
+      <div id="memorial-body"></div>
+      <button type="button" id="memorial-close">Schließen</button>
+    </div>
+  </dialog>
+
+  <dialog id="visitor-dialog" class="visitor-dialog">
+    <form id="visitor-form">
+      <h2 id="visitor-title">Besucher eintragen</h2>
+      <p id="visitor-date" class="visitor-date"></p>
+      <fieldset class="visitor-types">
+        <legend>Art der Besucher</legend>
+        <label>
+          <input type="radio" name="visitor-type" value="hinterbliebene" required>
+          <span class="visitor-type-text">Angehörige</span>
+          <span class="visitor-count" data-visitor-count="hinterbliebene"></span>
+        </label>
+        <label>
+          <input type="radio" name="visitor-type" value="hausfuehrung">
+          <span class="visitor-type-text">Interessierte</span>
+          <span class="visitor-count" data-visitor-count="hausfuehrung"></span>
+        </label>
+        <label>
+          <input type="radio" name="visitor-type" value="grabverkauf">
+          <span class="visitor-type-text">Grabverkauf</span>
+          <span class="visitor-count" data-visitor-count="grabverkauf"></span>
+        </label>
+      </fieldset>
+      <p id="visitor-status" class="visitor-status"></p>
+      <div class="visitor-actions">
+        <button type="button" id="visitor-cancel">Abbrechen</button>
+        <button type="submit" id="visitor-save">Bestätigen</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js?v=2026-09-24-langtap"></script>
+</body>
+</html>

@@ -1,0 +1,379 @@
+:root {
+  color-scheme: light;
+  --bg: rgb(240, 240, 230);
+  --card: #ffffff;
+  --text: #1f2933;
+  --muted: #7b8794;
+  --accent: rgb(115, 10, 43);
+  --border: #d9e2ec;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1rem 1rem 2rem;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-bottom: 1.2rem;
+}
+
+.logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  object-fit: contain;
+  border: none;
+  background: transparent;
+}
+
+.header-text h1 {
+  margin: 0;
+  font-size: 1.35rem;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.header-text h1:active {
+  opacity: 0.75;
+}
+
+.header-text p {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.feature-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin: 0 0 0.9rem;
+  padding: 0.85rem 0.95rem;
+  background: #fff8f0;
+  border: 1px solid #f0d7b8;
+  border-radius: 0.75rem;
+  color: var(--text);
+}
+
+.feature-hint[hidden] {
+  display: none;
+}
+
+.feature-hint p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.feature-hint button {
+  align-self: flex-start;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.name-dialog {
+  border: none;
+  border-radius: 0.9rem;
+  padding: 1.2rem;
+  width: min(92vw, 22rem);
+  box-shadow: 0 12px 40px rgba(16, 24, 40, 0.18);
+}
+
+.name-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.name-dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.name-dialog label {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.name-dialog input {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.name-dialog button {
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.day-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+}
+
+.day-card:active,
+.day-card.is-pressing {
+  background: #f8fafc;
+}
+
+.day-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 0.45rem;
+}
+
+.staff-list {
+  margin: 0;
+  padding-left: 1.5rem;
+  list-style-position: outside;
+}
+
+.staff-list li {
+  display: list-item;
+  margin: 0;
+  padding: 0.2rem 0;
+}
+
+.staff-list li + li {
+  margin-top: 0.15rem;
+}
+
+.staff-list li.staff-me {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.staff {
+  line-height: 1.55;
+}
+
+.note {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.error {
+  background: #fff5f5;
+  border: 1px solid #f5c2c7;
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+
+.memorial-dialog {
+  border: none;
+  border-radius: 0.9rem;
+  padding: 0;
+  width: min(94vw, 28rem);
+  max-height: min(88vh, 40rem);
+  box-shadow: 0 12px 40px rgba(16, 24, 40, 0.18);
+}
+
+.memorial-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.memorial-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.2rem;
+  max-height: min(88vh, 40rem);
+}
+
+.memorial-panel h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--accent);
+}
+
+#memorial-body {
+  overflow: auto;
+  flex: 1;
+}
+
+.memorial-section + .memorial-section {
+  margin-top: 1rem;
+}
+
+.memorial-section h3 {
+  margin: 0 0 0.45rem;
+  font-size: 1rem;
+}
+
+.memorial-list {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.memorial-list li {
+  margin: 0 0 0.55rem;
+  line-height: 1.4;
+}
+
+.memorial-meta,
+.memorial-grab {
+  display: block;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.memorial-loading {
+  margin: 0;
+  color: var(--muted);
+}
+
+.memorial-panel > button {
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.visitor-dialog {
+  border: none;
+  border-radius: 0.9rem;
+  padding: 1.2rem;
+  width: min(94vw, 24rem);
+  box-shadow: 0 12px 40px rgba(16, 24, 40, 0.18);
+}
+
+.visitor-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.visitor-dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.visitor-dialog h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--accent);
+}
+
+.visitor-date {
+  margin: 0;
+  color: var(--muted);
+}
+
+.visitor-types {
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.visitor-types legend {
+  font-weight: 700;
+  color: var(--accent);
+  padding: 0 0.25rem;
+}
+
+.visitor-types label {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 1.05rem;
+}
+
+.visitor-type-text {
+  flex: 1;
+}
+
+.visitor-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--accent);
+  min-width: 1.6rem;
+  text-align: right;
+}
+
+.visitor-count.is-loading,
+.visitor-count.is-empty {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.visitor-status {
+  min-height: 1.2rem;
+  margin: 0;
+  color: #b42318;
+  font-size: 0.92rem;
+}
+
+.visitor-status.ok {
+  color: var(--accent);
+}
+
+.visitor-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+.visitor-actions button {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: #fff;
+}
+
+.visitor-actions #visitor-save {
+  border: none;
+  color: #fff;
+  background: var(--accent);
+}
+
+@media (display-mode: standalone) {
+  main {
+    padding-top: 1.4rem;
+  }
+}
