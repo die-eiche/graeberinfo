@@ -1,0 +1,18 @@
+Besucherstatistik (Heatmaps in auswertung.html)
+==============================================
+
+Dateien in diesem Ordner:
+  besucher.csv            Laufende Tabelle (Kategorie;Anzahl;Zeitstempel)
+  besucher-YYYY-MM.csv    Monatliche CSV-Kopie
+  besucher-YYYY-MM.png    Monatlicher Screenshot der drei Heatmaps
+
+Kategorien (genau eine Gruppe pro Eintrag):
+  Hinterbliebene, Hausführung, Grabverkauf
+
+Demo-Daten (# DEMO=1) gelten bis 1.1.2027 00:00 Europe/Berlin.
+Beim nächsten Zugriff danach wird die Tabelle geleert.
+Ab dann schreibt dienste.html (POST besucher.php, kategorie + anzahl) kumulativ.
+
+Web-Kopie (für http://…/grabbuch/auswertung.html):
+  SYNC-NACH-WEB.bat im Ordner Grabbuch ausführen
+  (kopiert nach \\synology\web\grabbuch).
