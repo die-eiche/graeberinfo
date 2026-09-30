@@ -1,11 +1,13 @@
 (function () {
   var LONG_PRESS_MS = 560;
-  var MOVE_CANCEL_PX = 12;
+  var PRESS_OPEN_MS = 400;
+  var MOVE_CANCEL_PX = 20;
   var MIN = 1;
   var MAX = 30;
   var ITEM_H = 56;
   var pressTimer = null;
   var pressStart = null;
+  var pressOpened = false;
   var suppressClick = false;
   var count = 1;
   var visitorType = 'hinterbliebene';
@@ -236,22 +238,44 @@
     });
   }
 
+  function cardIso(card) {
+    return card.getAttribute('data-iso') || isoFromGerman(card.getAttribute('data-date') || '');
+  }
+
+  function cardLabel(card, iso) {
+    return card.getAttribute('data-label') || (card.querySelector('.day-title') || {}).textContent || iso;
+  }
+
+  function openFromPress(card) {
+    if (!card || pressOpened) return;
+    var iso = cardIso(card);
+    if (!iso) return;
+    pressOpened = true;
+    suppressClick = true;
+    openDialog(iso, cardLabel(card, iso));
+    clearPress();
+  }
+
   function bindCard(card) {
     if (card.getAttribute('data-besucher-bound') === '1') return;
     card.setAttribute('data-besucher-bound', '1');
+    card.style.webkitTouchCallout = 'none';
+    card.style.userSelect = 'none';
+    card.style.webkitUserSelect = 'none';
+    card.style.touchAction = 'pan-y';
     card.addEventListener('pointerdown', function (ev) {
-      if (ev.button && ev.button !== 0) return;
+      if (ev.isPrimary === false) return;
+      if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+      pressOpened = false;
       clearPress();
-      pressStart = { x: ev.clientX, y: ev.clientY };
+      pressStart = { x: ev.clientX, y: ev.clientY, t: Date.now(), card: card };
       card.classList.add('is-pressing');
-      try { card.setPointerCapture(ev.pointerId); } catch (e1) {}
+      if (ev.pointerType === 'mouse') {
+        try { card.setPointerCapture(ev.pointerId); } catch (e1) {}
+      }
       pressTimer = setTimeout(function () {
         pressTimer = null;
-        suppressClick = true;
-        var iso = card.getAttribute('data-iso') || isoFromGerman(card.getAttribute('data-date') || '');
-        var label = card.getAttribute('data-label') || (card.querySelector('.day-title') || {}).textContent || iso;
-        if (iso) openDialog(iso, label);
-        clearPress();
+        openFromPress(card);
       }, LONG_PRESS_MS);
     });
     card.addEventListener('pointermove', function (ev) {
@@ -261,13 +285,15 @@
       if ((dx * dx + dy * dy) > MOVE_CANCEL_PX * MOVE_CANCEL_PX) clearPress();
     });
     card.addEventListener('pointerup', clearPress);
-    card.addEventListener('pointercancel', clearPress);
+    card.addEventListener('pointercancel', function () {
+      var held = pressStart && (Date.now() - pressStart.t) >= PRESS_OPEN_MS;
+      var target = pressStart && pressStart.card;
+      if (held && target) openFromPress(target);
+      else clearPress();
+    });
     card.addEventListener('contextmenu', function (ev) {
       ev.preventDefault();
-      clearPress();
-      var iso = card.getAttribute('data-iso') || isoFromGerman(card.getAttribute('data-date') || '');
-      var label = card.getAttribute('data-label') || (card.querySelector('.day-title') || {}).textContent || iso;
-      if (iso) openDialog(iso, label);
+      openFromPress(card);
     });
     card.addEventListener('click', function (ev) {
       if (suppressClick) {

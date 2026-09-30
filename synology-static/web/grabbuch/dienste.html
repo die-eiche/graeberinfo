@@ -94,10 +94,11 @@
       user-select: none;
       -webkit-user-select: none;
       -webkit-touch-callout: none;
-      touch-action: manipulation;
+      /* pan-y: Liste scrollen; stiller Halt darf nicht als Browser-Long-Press abgebrochen werden */
+      touch-action: pan-y;
     }
     .day-card.is-today { border-color: #8fbf96; box-shadow: 0 0 0 2px rgba(47, 93, 58, 0.12); }
-    .day-card.is-pressing { background: #eef6ef; }
+    .day-card.is-pressing { background: #eef6ef; touch-action: none; }
     .day-title {
       font-size: 1.05rem;
       font-weight: 700;
@@ -315,7 +316,8 @@
   <script>
 (function () {
   var LONG_PRESS_MS = 560;
-  var MOVE_CANCEL_PX = 12;
+  var PRESS_OPEN_MS = 400;
+  var MOVE_CANCEL_PX = 20;
   var MIN = 1;
   var MAX = 30;
   var ITEM_H = 56;
@@ -345,6 +347,7 @@
   var wheelReady = false;
   var pressTimer = null;
   var pressStart = null;
+  var pressOpened = false;
   var suppressClick = false;
   var toastTimer = null;
   var TEIL = {
@@ -570,19 +573,30 @@
     });
   }
 
+  function openFromPress(card) {
+    if (!card || pressOpened) return;
+    pressOpened = true;
+    suppressClick = true;
+    openDialog(card.getAttribute('data-iso'), card.getAttribute('data-label'));
+    clearPress();
+  }
+
   function bindCards() {
     content.querySelectorAll('.day-card').forEach(function (card) {
       card.addEventListener('pointerdown', function (ev) {
-        if (ev.button && ev.button !== 0) return;
+        if (ev.isPrimary === false) return;
+        if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+        pressOpened = false;
         clearPress();
-        pressStart = { x: ev.clientX, y: ev.clientY, card: card };
+        pressStart = { x: ev.clientX, y: ev.clientY, t: Date.now(), card: card };
         card.classList.add('is-pressing');
-        try { card.setPointerCapture(ev.pointerId); } catch (e1) {}
+        /* setPointerCapture auf Touch löst in Safari oft pointercancel aus. */
+        if (ev.pointerType === 'mouse') {
+          try { card.setPointerCapture(ev.pointerId); } catch (e1) {}
+        }
         pressTimer = setTimeout(function () {
           pressTimer = null;
-          suppressClick = true;
-          openDialog(card.getAttribute('data-iso'), card.getAttribute('data-label'));
-          clearPress();
+          openFromPress(card);
         }, LONG_PRESS_MS);
       });
       card.addEventListener('pointermove', function (ev) {
@@ -592,11 +606,16 @@
         if ((dx * dx + dy * dy) > MOVE_CANCEL_PX * MOVE_CANCEL_PX) clearPress();
       });
       card.addEventListener('pointerup', clearPress);
-      card.addEventListener('pointercancel', clearPress);
+      card.addEventListener('pointercancel', function () {
+        /* iOS/Android: langer Tap → pointercancel vor dem Timer, Dialog blieb zu. */
+        var held = pressStart && (Date.now() - pressStart.t) >= PRESS_OPEN_MS;
+        var target = pressStart && pressStart.card;
+        if (held && target) openFromPress(target);
+        else clearPress();
+      });
       card.addEventListener('contextmenu', function (ev) {
         ev.preventDefault();
-        clearPress();
-        openDialog(card.getAttribute('data-iso'), card.getAttribute('data-label'));
+        openFromPress(card);
       });
       card.addEventListener('click', function (ev) {
         if (suppressClick) {
